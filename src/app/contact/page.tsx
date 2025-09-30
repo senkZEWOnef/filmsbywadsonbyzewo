@@ -126,7 +126,7 @@ export default function ContactPage() {
             GET IN TOUCH
           </h1>
           <p className="text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto mb-8 leading-relaxed">
-            Ready to capture your love story? Let's create something beautiful together.
+            Ready to capture your love story? Let&apos;s create something beautiful together.
           </p>
         </div>
       </section>
@@ -140,10 +140,10 @@ export default function ContactPage() {
             <div className="space-y-8">
               <div>
                 <h2 className="text-2xl sm:text-3xl font-light text-slate-800 mb-6">
-                  Let's Connect
+                  Let&apos;s Connect
                 </h2>
                 <p className="text-slate-600 text-lg leading-relaxed mb-8">
-                  We'd love to hear about your special day and discuss how we can help capture every magical moment. 
+                  We&apos;d love to hear about your special day and discuss how we can help capture every magical moment. 
                   Reach out to us through any of the methods below.
                 </p>
               </div>

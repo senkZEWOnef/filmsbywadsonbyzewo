@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 
 export default function AvailabilitySection() {
   const [selectedDate, setSelectedDate] = useState<string>("");
-  const [calendarDays, setCalendarDays] = useState<any[]>([]);
+  const [calendarDays, setCalendarDays] = useState<({day: number; date: string; isPast: boolean; isBooked: boolean; isAvailable: boolean} | null)[]>([]);
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {

@@ -7,7 +7,7 @@ import { VideoRecord, BookingRecord, CalendarRecord, ContactFormRecord, Callback
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
-  const [calendarData, setCalendarData] = useState<any>({});
+  const [calendarData, setCalendarData] = useState<{[key: string]: string}>({});
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [dateStatus, setDateStatus] = useState<string>("available");
   const [portfolioVideos, setPortfolioVideos] = useState<VideoRecord[]>([]);
@@ -49,7 +49,7 @@ export default function AdminDashboard() {
 
       // Load calendar data
       const calendarRecords = await getCalendarData();
-      const calendarMap: any = {};
+      const calendarMap: {[key: string]: string} = {};
       calendarRecords.forEach(record => {
         calendarMap[record.date] = record.status;
       });
@@ -282,7 +282,7 @@ export default function AdminDashboard() {
           <div className="space-y-8">
             <div>
               <h2 className="text-3xl font-light text-white mb-2">Welcome back, Wadson</h2>
-              <p className="text-slate-300">Here's what's happening with your business today.</p>
+              <p className="text-slate-300">Here&apos;s what&apos;s happening with your business today.</p>
             </div>
             
             {/* Modern Analytics Cards */}
@@ -748,7 +748,7 @@ export default function AdminDashboard() {
                   {inquiry.message && (
                     <div className="mt-4 p-4 bg-slate-700/50 rounded-lg">
                       <p className="text-slate-200 text-sm leading-relaxed">
-                        "{inquiry.message}"
+                        &quot;{inquiry.message}&quot;
                       </p>
                     </div>
                   )}

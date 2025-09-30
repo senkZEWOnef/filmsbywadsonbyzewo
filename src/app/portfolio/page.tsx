@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import { useSupabaseVideos } from '@/hooks/useSupabase';
@@ -10,7 +11,7 @@ export default function Portfolio() {
   const [portfolioVideos, setPortfolioVideos] = useState<VideoRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedVideo, setSelectedVideo] = useState<VideoRecord | null>(null);
-  const [selectedPhoto, setSelectedPhoto] = useState<any>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<{id: number; name: string; url: string} | null>(null);
   const [activeTab, setActiveTab] = useState<'videos' | 'snaps'>('videos');
   const [showMoreVideos, setShowMoreVideos] = useState(false);
   const [showMoreSnaps, setShowMoreSnaps] = useState(false);
@@ -303,12 +304,12 @@ export default function Portfolio() {
           <p className="text-xl text-purple-100 mb-8">
             Let us capture the magic of your special day with the same passion and artistry
           </p>
-          <a 
+          <Link 
             href="/#contact" 
             className="inline-block bg-white text-purple-600 px-8 py-4 rounded-full font-semibold hover:bg-gray-100 transition-colors duration-300"
           >
             Get In Touch
-          </a>
+          </Link>
         </div>
       </section>
 

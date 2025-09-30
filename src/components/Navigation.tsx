@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 export default function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -10,9 +11,9 @@ export default function Navigation() {
       <div className="max-w-7xl mx-auto px-6 py-4">
         <div className="flex justify-between items-center">
           {/* Logo */}
-          <a href="/" className="text-2xl font-light tracking-wider text-slate-900 hover:text-slate-700 transition-colors">
+          <Link href="/" className="text-2xl font-light tracking-wider text-slate-900 hover:text-slate-700 transition-colors">
             FILMS BY WADSON
-          </a>
+          </Link>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">

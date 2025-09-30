@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import { useSupabaseCalendar, useSupabaseBookings } from '@/hooks/useSupabase';
@@ -142,7 +143,7 @@ export default function BookPage() {
             BOOK YOUR PERFECT DAY
           </h1>
           <p className="text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto mb-8 leading-relaxed">
-            Let's create something magical together. Select your wedding date and tell us about your special day.
+            Let&apos;s create something magical together. Select your wedding date and tell us about your special day.
           </p>
           
           {/* Progress Indicator */}
@@ -499,7 +500,7 @@ export default function BookPage() {
                 </h2>
                 
                 <p className="text-lg text-slate-600 mb-6 max-w-2xl mx-auto">
-                  Thank you for choosing Films by Wadson! We've received your booking request for{' '}
+                  Thank you for choosing Films by Wadson! We&apos;ve received your booking request for{' '}
                   <strong>
                     {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', {
                       weekday: 'long',
@@ -515,30 +516,30 @@ export default function BookPage() {
                   <ul className="space-y-2 text-slate-600">
                     <li className="flex items-start">
                       <span className="text-purple-600 mr-2">•</span>
-                      We'll review your request within 24 hours
+                      We&apos;ll review your request within 24 hours
                     </li>
                     <li className="flex items-start">
                       <span className="text-purple-600 mr-2">•</span>
-                      You'll receive an email confirmation with next steps
+                      You&apos;ll receive an email confirmation with next steps
                     </li>
                     <li className="flex items-start">
                       <span className="text-purple-600 mr-2">•</span>
-                      We'll schedule a consultation call to discuss your vision
+                      We&apos;ll schedule a consultation call to discuss your vision
                     </li>
                     <li className="flex items-start">
                       <span className="text-purple-600 mr-2">•</span>
-                      Upon approval, we'll send you a contract and invoice
+                      Upon approval, we&apos;ll send you a contract and invoice
                     </li>
                   </ul>
                 </div>
                 
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <a 
+                  <Link 
                     href="/" 
                     className="inline-block bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold px-8 py-3 rounded-full transition-all duration-300"
                   >
                     Return Home
-                  </a>
+                  </Link>
                   <a 
                     href="/portfolio" 
                     className="inline-block border-2 border-purple-600 text-purple-600 hover:bg-purple-600 hover:text-white font-semibold px-8 py-3 rounded-full transition-all duration-300"

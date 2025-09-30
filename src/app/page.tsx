@@ -123,7 +123,7 @@ export default function Home() {
           
           <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-semibold tracking-wide leading-relaxed max-w-4xl mx-auto mb-8 sm:mb-12 px-4">
             <span className="bg-gradient-to-r from-purple-200 via-pink-200 to-purple-200 bg-clip-text text-transparent drop-shadow-lg italic">
-              "We bottle the spell of your wedding and let it live on"
+              &quot;We bottle the spell of your wedding and let it live on&quot;
             </span>
           </p>
           
@@ -271,7 +271,7 @@ export default function Home() {
                 Ready to Create Your Story?
               </h3>
               <p className="text-slate-600 mb-6 text-lg leading-relaxed">
-                Let's capture the magic of your special day and turn it into a cinematic masterpiece you'll treasure forever.
+                Let&apos;s capture the magic of your special day and turn it into a cinematic masterpiece you&apos;ll treasure forever.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <a 
@@ -313,7 +313,7 @@ export default function Home() {
                 <h3 className="text-xl sm:text-2xl font-light text-white mb-2 tracking-wide">
                   CHECK AVAILABILITY
                 </h3>
-                <p className="text-gray-300 text-sm">Select a date to see if we're available</p>
+                <p className="text-gray-300 text-sm">Select a date to see if we&apos;re available</p>
               </div>
               
               {/* Simplified Calendar Grid */}
