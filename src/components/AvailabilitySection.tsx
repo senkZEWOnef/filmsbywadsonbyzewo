@@ -1,84 +1,120 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function AvailabilitySection() {
   const [selectedDate, setSelectedDate] = useState<string>("");
+  const [calendarDays, setCalendarDays] = useState<any[]>([]);
+  const [isClient, setIsClient] = useState(false);
 
-  const generateCalendarDays = () => {
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    const firstDay = new Date(currentYear, currentMonth, 1);
-    const lastDay = new Date(currentYear, currentMonth + 1, 0);
-    const startingDayOfWeek = firstDay.getDay();
-    const daysInMonth = lastDay.getDate();
+  useEffect(() => {
+    setIsClient(true);
     
-    const days = [];
-    
-    // Add empty cells for days before the first day of the month
-    for (let i = 0; i < startingDayOfWeek; i++) {
-      days.push(null);
-    }
-    
-    // Add days of the month
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(currentYear, currentMonth, day);
-      const dateString = date.toISOString().split('T')[0];
-      const isPast = date < today;
-      const isBooked = Math.random() > 0.7; // Random booking simulation
+    const generateCalendarDays = () => {
+      const today = new Date();
+      const currentMonth = today.getMonth();
+      const currentYear = today.getFullYear();
+      const firstDay = new Date(currentYear, currentMonth, 1);
+      const lastDay = new Date(currentYear, currentMonth + 1, 0);
+      const startingDayOfWeek = firstDay.getDay();
+      const daysInMonth = lastDay.getDate();
       
-      days.push({
-        day,
-        date: dateString,
-        isPast,
-        isBooked,
-        isAvailable: !isPast && !isBooked
-      });
-    }
-    
-    return days;
-  };
+      const days = [];
+      
+      // Predefined booking pattern for consistency
+      const bookedDays = [5, 12, 18, 25]; // Fixed booked days
+      
+      // Add empty cells for days before the first day of the month
+      for (let i = 0; i < startingDayOfWeek; i++) {
+        days.push(null);
+      }
+      
+      // Add days of the month
+      for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(currentYear, currentMonth, day);
+        const dateString = date.toISOString().split('T')[0];
+        const isPast = date < today;
+        const isBooked = bookedDays.includes(day); // Use fixed booking pattern
+        
+        days.push({
+          day,
+          date: dateString,
+          isPast,
+          isBooked,
+          isAvailable: !isPast && !isBooked
+        });
+      }
+      
+      return days;
+    };
 
-  const calendarDays = generateCalendarDays();
+    setCalendarDays(generateCalendarDays());
+  }, []);
   const monthNames = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
   ];
+  
   const today = new Date();
   const currentMonthName = monthNames[today.getMonth()];
   const currentYear = today.getFullYear();
 
+  // Show loading state until client-side hydration is complete
+  if (!isClient) {
+    return (
+      <section className="relative py-12 sm:py-16 lg:py-20 bg-cover bg-center bg-no-repeat" style={{backgroundImage: 'url(/availability.jpg)'}}>
+        <div className="absolute inset-0 bg-black/50"></div>
+        <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-light text-center mb-8 sm:mb-12 lg:mb-16 text-white tracking-wide">
+            CHECK AVAILABILITY
+          </h2>
+          <div className="max-w-3xl mx-auto">
+            <div className="bg-slate-800/85 backdrop-blur-md rounded-lg shadow-xl p-4 sm:p-6 lg:p-8 border border-white/30">
+              <div className="text-center mb-6 sm:mb-8">
+                <div className="animate-pulse">
+                  <div className="h-6 bg-slate-600 rounded w-48 mx-auto mb-2"></div>
+                  <div className="h-4 bg-slate-600 rounded w-64 mx-auto"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
-    <section className="py-20 bg-slate-50">
-      <div className="max-w-6xl mx-auto px-6">
-        <h2 className="text-4xl md:text-5xl font-bold text-center mb-16 text-slate-900">
-          Check Availability
+    <section className="relative py-12 sm:py-16 lg:py-20 bg-cover bg-center bg-no-repeat" style={{backgroundImage: 'url(/availability.jpg)'}}>
+      {/* Background overlay for better readability */}
+      <div className="absolute inset-0 bg-black/50"></div>
+      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6">
+        <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-light text-center mb-8 sm:mb-12 lg:mb-16 text-white tracking-wide">
+          CHECK AVAILABILITY
         </h2>
         
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-lg shadow-lg p-8">
-            <div className="text-center mb-8">
-              <h3 className="text-2xl font-semibold mb-2">{currentMonthName} {currentYear}</h3>
-              <p className="text-gray-600">Select a date to check availability for your wedding</p>
+        <div className="max-w-3xl mx-auto">
+          <div className="bg-slate-800/85 backdrop-blur-md rounded-lg shadow-xl p-4 sm:p-6 lg:p-8 border border-white/30">
+            <div className="text-center mb-6 sm:mb-8">
+              <h3 className="text-lg sm:text-xl lg:text-2xl font-semibold mb-2 text-white">{currentMonthName} {currentYear}</h3>
+              <p className="text-sm sm:text-base text-gray-300">Select a date to check availability for your wedding</p>
             </div>
             
             {/* Calendar Grid */}
-            <div className="grid grid-cols-7 gap-2 mb-8">
+            <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-6 sm:mb-8">
               {/* Day headers */}
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                <div key={day} className="text-center font-semibold text-gray-700 py-2">
+                <div key={day} className="text-center font-semibold text-gray-300 py-1 sm:py-2 text-xs sm:text-sm">
                   {day}
                 </div>
               ))}
               
               {/* Calendar days */}
               {calendarDays.map((dayData, index) => (
-                <div key={index} className="aspect-square p-1">
+                <div key={index} className="aspect-square p-0.5 sm:p-1">
                   {dayData ? (
                     <button
                       onClick={() => dayData.isAvailable && setSelectedDate(dayData.date)}
-                      className={`w-full h-full rounded-lg text-sm font-medium transition-all duration-200 ${
+                      className={`w-full h-full rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
                         dayData.isPast
                           ? 'text-gray-300 cursor-not-allowed'
                           : dayData.isBooked
@@ -106,15 +142,15 @@ export default function AvailabilitySection() {
             <div className="flex flex-wrap justify-center gap-6 mb-8">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-green-100 rounded border"></div>
-                <span className="text-sm text-gray-600">Available</span>
+                <span className="text-sm text-gray-300">Available</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-red-100 rounded border"></div>
-                <span className="text-sm text-gray-600">Booked</span>
+                <span className="text-sm text-gray-300">Booked</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-gray-100 rounded border"></div>
-                <span className="text-sm text-gray-600">Past</span>
+                <span className="text-sm text-gray-300">Past</span>
               </div>
             </div>
             

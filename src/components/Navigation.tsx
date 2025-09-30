@@ -10,25 +10,22 @@ export default function Navigation() {
       <div className="max-w-7xl mx-auto px-6 py-4">
         <div className="flex justify-between items-center">
           {/* Logo */}
-          <div className="text-2xl font-light tracking-wider text-slate-900">
+          <a href="/" className="text-2xl font-light tracking-wider text-slate-900 hover:text-slate-700 transition-colors">
             FILMS BY WADSON
-          </div>
+          </a>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            <a href="#home" className="text-slate-700 hover:text-slate-900 font-light tracking-wide transition-colors">
-              HOME
-            </a>
-            <a href="#about" className="text-slate-700 hover:text-slate-900 font-light tracking-wide transition-colors">
+            <a href="/about" className="text-slate-700 hover:text-slate-900 font-light tracking-wide transition-colors">
               ABOUT
             </a>
-            <a href="#portfolio" className="text-slate-700 hover:text-slate-900 font-light tracking-wide transition-colors">
+            <a href="/portfolio" className="text-slate-700 hover:text-slate-900 font-light tracking-wide transition-colors">
               PORTFOLIO
             </a>
-            <a href="#press" className="text-slate-700 hover:text-slate-900 font-light tracking-wide transition-colors">
-              PRESS
+            <a href="/book" className="text-slate-700 hover:text-slate-900 font-light tracking-wide transition-colors">
+              BOOK
             </a>
-            <a href="#contact" className="text-slate-700 hover:text-slate-900 font-light tracking-wide transition-colors">
+            <a href="/contact" className="text-slate-700 hover:text-slate-900 font-light tracking-wide transition-colors">
               CONTACT
             </a>
           </div>
@@ -42,7 +39,13 @@ export default function Navigation() {
             </a>
             <a href="#" className="text-slate-600 hover:text-slate-900 transition-colors">
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z"/>
+                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+              </svg>
+            </a>
+            <a href="/admin" className="text-slate-600 hover:text-slate-900 transition-colors opacity-50 hover:opacity-100">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
             </a>
           </div>
@@ -66,19 +69,16 @@ export default function Navigation() {
         {isMenuOpen && (
           <div className="md:hidden mt-4 pb-4">
             <div className="flex flex-col space-y-4">
-              <a href="#home" className="text-slate-700 hover:text-slate-900 font-light tracking-wide">
-                HOME
-              </a>
-              <a href="#about" className="text-slate-700 hover:text-slate-900 font-light tracking-wide">
+              <a href="/about" className="text-slate-700 hover:text-slate-900 font-light tracking-wide">
                 ABOUT
               </a>
-              <a href="#portfolio" className="text-slate-700 hover:text-slate-900 font-light tracking-wide">
+              <a href="/portfolio" className="text-slate-700 hover:text-slate-900 font-light tracking-wide">
                 PORTFOLIO
               </a>
-              <a href="#press" className="text-slate-700 hover:text-slate-900 font-light tracking-wide">
-                PRESS
+              <a href="/book" className="text-slate-700 hover:text-slate-900 font-light tracking-wide">
+                BOOK
               </a>
-              <a href="#contact" className="text-slate-700 hover:text-slate-900 font-light tracking-wide">
+              <a href="/contact" className="text-slate-700 hover:text-slate-900 font-light tracking-wide">
                 CONTACT
               </a>
             </div>
