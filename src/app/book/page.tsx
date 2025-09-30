@@ -12,6 +12,8 @@ export default function BookPage() {
   const [calendarData, setCalendarData] = useState<{[key: string]: string}>({});
   const [currentStep, setCurrentStep] = useState(1); // 1: Calendar, 2: Form, 3: Confirmation
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(0);
+  const [currentYear, setCurrentYear] = useState(0);
   
   const [bookingData, setBookingData] = useState({
     client_name: "",
@@ -32,6 +34,9 @@ export default function BookPage() {
   const { createBooking, loading: bookingLoading } = useSupabaseBookings();
 
   useEffect(() => {
+    const today = new Date();
+    setCurrentMonth(today.getMonth());
+    setCurrentYear(today.getFullYear());
     loadCalendarData();
   }, []);
 
@@ -50,10 +55,10 @@ export default function BookPage() {
 
   const generateCalendarDays = () => {
     const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    const firstDay = new Date(currentYear, currentMonth, 1);
-    const lastDay = new Date(currentYear, currentMonth + 1, 0);
+    const month = currentMonth;
+    const year = currentYear;
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
     const startingDayOfWeek = firstDay.getDay();
     const daysInMonth = lastDay.getDate();
     
@@ -66,7 +71,7 @@ export default function BookPage() {
     
     // Add days of the month
     for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(currentYear, currentMonth, day);
+      const date = new Date(year, month, day);
       const dateString = date.toISOString().split('T')[0];
       const isPast = date < today;
       const status = calendarData[dateString] || "available";
@@ -82,6 +87,28 @@ export default function BookPage() {
     }
     
     return days;
+  };
+
+  const navigateMonth = (direction: 'prev' | 'next') => {
+    let newMonth = currentMonth;
+    let newYear = currentYear;
+    
+    if (direction === 'next') {
+      newMonth = currentMonth + 1;
+      if (newMonth > 11) {
+        newMonth = 0;
+        newYear = currentYear + 1;
+      }
+    } else {
+      newMonth = currentMonth - 1;
+      if (newMonth < 0) {
+        newMonth = 11;
+        newYear = currentYear - 1;
+      }
+    }
+    
+    setCurrentMonth(newMonth);
+    setCurrentYear(newYear);
   };
 
   const handleDateSelect = (date: string) => {
@@ -128,9 +155,6 @@ export default function BookPage() {
 
   const calendarDays = generateCalendarDays();
   const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  const today = new Date();
-  const currentMonthName = monthNames[today.getMonth()];
-  const currentYear = today.getFullYear();
 
   return (
     <div className="min-h-screen bg-white">
@@ -190,8 +214,28 @@ export default function BookPage() {
               </div>
               
               <div className="p-6 sm:p-8">
-                <div className="text-center mb-8">
-                  <h3 className="text-xl font-medium text-slate-800 mb-4">{currentMonthName} {currentYear}</h3>
+                <div className="flex items-center justify-between mb-8">
+                  <button
+                    onClick={() => navigateMonth('prev')}
+                    className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 transition-colors"
+                  >
+                    <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  
+                  <h3 className="text-xl font-medium text-slate-800">
+                    {monthNames[currentMonth]} {currentYear}
+                  </h3>
+                  
+                  <button
+                    onClick={() => navigateMonth('next')}
+                    className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 transition-colors"
+                  >
+                    <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
                 </div>
                 
                 {/* Calendar Grid */}

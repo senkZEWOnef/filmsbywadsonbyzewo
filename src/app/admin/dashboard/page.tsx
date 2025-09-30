@@ -10,6 +10,8 @@ export default function AdminDashboard() {
   const [calendarData, setCalendarData] = useState<{[key: string]: string}>({});
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [dateStatus, setDateStatus] = useState<string>("available");
+  const [currentAdminMonth, setCurrentAdminMonth] = useState(0);
+  const [currentAdminYear, setCurrentAdminYear] = useState(0);
   const [portfolioVideos, setPortfolioVideos] = useState<VideoRecord[]>([]);
   const [heroVideo, setHeroVideo] = useState<VideoRecord | null>(null);
   const [bookings, setBookings] = useState<BookingRecord[]>([]);
@@ -31,6 +33,11 @@ export default function AdminDashboard() {
       return;
     }
 
+    // Initialize calendar to current month
+    const today = new Date();
+    setCurrentAdminMonth(today.getMonth());
+    setCurrentAdminYear(today.getFullYear());
+    
     // Load data from Supabase
     loadInitialData();
   }, [router]);
@@ -154,10 +161,10 @@ export default function AdminDashboard() {
 
   const generateCalendarDays = () => {
     const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    const firstDay = new Date(currentYear, currentMonth, 1);
-    const lastDay = new Date(currentYear, currentMonth + 1, 0);
+    const month = currentAdminMonth;
+    const year = currentAdminYear;
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
     const startingDayOfWeek = firstDay.getDay();
     const daysInMonth = lastDay.getDate();
     
@@ -170,7 +177,7 @@ export default function AdminDashboard() {
     
     // Add days of the month
     for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(currentYear, currentMonth, day);
+      const date = new Date(year, month, day);
       const dateString = date.toISOString().split('T')[0];
       const status = calendarData[dateString] || "available";
       const isPast = date < today;
@@ -184,6 +191,29 @@ export default function AdminDashboard() {
     }
     
     return days;
+  };
+
+  const navigateAdminMonth = (direction: 'prev' | 'next') => {
+    let newMonth = currentAdminMonth;
+    let newYear = currentAdminYear;
+    
+    if (direction === 'next') {
+      newMonth = currentAdminMonth + 1;
+      if (newMonth > 11) {
+        newMonth = 0;
+        newYear = currentAdminYear + 1;
+      }
+    } else {
+      newMonth = currentAdminMonth - 1;
+      if (newMonth < 0) {
+        newMonth = 11;
+        newYear = currentAdminYear - 1;
+      }
+    }
+    
+    setCurrentAdminMonth(newMonth);
+    setCurrentAdminYear(newYear);
+    setSelectedDate(""); // Clear selection when changing months
   };
 
   // Analytics data from Supabase
@@ -200,9 +230,8 @@ export default function AdminDashboard() {
 
   const calendarDays = generateCalendarDays();
   const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  const today = new Date();
-  const currentMonthName = monthNames[today.getMonth()];
-  const currentYear = today.getFullYear();
+  const adminMonthName = monthNames[currentAdminMonth];
+  const adminYear = currentAdminYear;
 
   return (
     <div className="min-h-screen bg-slate-900 flex">
@@ -428,8 +457,30 @@ export default function AdminDashboard() {
               {/* Calendar */}
               <div className="lg:col-span-2">
                 <div className="bg-slate-800/80 backdrop-blur-lg rounded-2xl p-6 border border-slate-700/50">
-                  <div className="text-center mb-6">
-                    <h3 className="text-xl font-semibold text-white">{currentMonthName} {currentYear}</h3>
+                  <div className="flex items-center justify-center mb-6">
+                    <button
+                      onClick={() => navigateAdminMonth('prev')}
+                      className="p-2 text-slate-300 hover:text-white transition-colors"
+                      aria-label="Previous month"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    
+                    <h3 className="text-xl font-semibold text-white mx-6 min-w-[200px] text-center">
+                      {adminMonthName} {adminYear}
+                    </h3>
+                    
+                    <button
+                      onClick={() => navigateAdminMonth('next')}
+                      className="p-2 text-slate-300 hover:text-white transition-colors"
+                      aria-label="Next month"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
                   </div>
                   
                   <div className="grid grid-cols-7 gap-2">
