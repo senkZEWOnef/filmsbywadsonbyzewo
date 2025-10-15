@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
-import { useSupabaseContactForms, useSupabaseCallbacks } from '@/hooks/useSupabase';
+import { useSupabaseContactForms, useSupabaseCallbacks } from '@/hooks/useDatabase';
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({

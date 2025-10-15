@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSupabaseVideos, useSupabaseCalendar, useSupabaseBookings, useSupabaseContactForms, useSupabaseCallbacks } from '@/hooks/useSupabase';
-import { VideoRecord, BookingRecord, CalendarRecord, ContactFormRecord, CallbackRequest } from '@/lib/supabase';
+import { useSupabaseVideos, useSupabaseCalendar, useSupabaseBookings, useSupabaseContactForms, useSupabaseCallbacks, useSupabasePhotos } from '@/hooks/useDatabase';
+import { useAnalyticsData } from '@/hooks/useAnalytics';
+import { VideoRecord, BookingRecord, CalendarRecord, ContactFormRecord, CallbackRequest, PhotoRecord } from '@/lib/database';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
@@ -14,17 +15,36 @@ export default function AdminDashboard() {
   const [currentAdminYear, setCurrentAdminYear] = useState(0);
   const [portfolioVideos, setPortfolioVideos] = useState<VideoRecord[]>([]);
   const [heroVideo, setHeroVideo] = useState<VideoRecord | null>(null);
+  const [portfolioPhotos, setPortfolioPhotos] = useState<PhotoRecord[]>([]);
+  const [aboutVideos, setAboutVideos] = useState<{[key: string]: VideoRecord | null}>({
+    about_hero: null,
+    about_timeline_1: null,
+    about_timeline_2: null,
+    about_timeline_3: null,
+    about_timeline_4: null,
+    about_timeline_5: null,
+    about_timeline_6: null,
+    about_behind_scenes: null,
+  });
   const [bookings, setBookings] = useState<BookingRecord[]>([]);
   const [contactForms, setContactForms] = useState<ContactFormRecord[]>([]);
   const [callbackRequests, setCallbackRequests] = useState<CallbackRequest[]>([]);
+  const [analyticsData, setAnalyticsData] = useState<{
+    summary: Array<{event_type: string; total_count: number; unique_visitors: number}>;
+    portfolioViews: number;
+    popularPages: Array<{page_path: string; views: number; unique_visitors: number}>;
+  } | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const router = useRouter();
 
   // Supabase hooks
-  const { uploadVideo, getVideos, deleteVideo, updateVideoName, loading: videoLoading, error: videoError } = useSupabaseVideos();
+  const { createVideo, getVideos, deleteVideo, updateVideoName, loading: videoLoading, error: videoError } = useSupabaseVideos();
+  const { createPhoto, getPhotos, deletePhoto, updatePhoto, loading: photoLoading, error: photoError } = useSupabasePhotos();
   const { updateCalendarDate, getCalendarData, loading: calendarLoading, error: calendarError } = useSupabaseCalendar();
   const { getBookings, updateBookingStatus, deleteBooking, loading: bookingLoading, error: bookingError } = useSupabaseBookings();
   const { getContactForms, updateContactFormStatus, loading: contactFormLoading, error: contactFormError } = useSupabaseContactForms();
   const { getCallbackRequests, updateCallbackStatus, deleteCallbackRequest, loading: callbackLoading, error: callbackError } = useSupabaseCallbacks();
+  const { fetchSummary } = useAnalyticsData();
 
   useEffect(() => {
     const isLoggedIn = localStorage.getItem("adminLoggedIn");
@@ -54,6 +74,10 @@ export default function AdminDashboard() {
         setHeroVideo(heroData[0]); // Use the most recent hero video
       }
 
+      // Load portfolio photos
+      const photoData = await getPhotos('portfolio');
+      setPortfolioPhotos(photoData);
+
       // Load calendar data
       const calendarRecords = await getCalendarData();
       const calendarMap: {[key: string]: string} = {};
@@ -73,8 +97,37 @@ export default function AdminDashboard() {
       // Load callback requests
       const callbackData = await getCallbackRequests();
       setCallbackRequests(callbackData);
+
+      // Load about page videos
+      const aboutVideoTypes = ['about_hero', 'about_timeline_1', 'about_timeline_2', 'about_timeline_3', 'about_timeline_4', 'about_timeline_5', 'about_timeline_6', 'about_behind_scenes'];
+      const aboutVideoPromises = aboutVideoTypes.map(async (type) => {
+        const videos = await getVideos(type as any);
+        return { type, video: videos.length > 0 ? videos[0] : null };
+      });
+      
+      const aboutVideoResults = await Promise.all(aboutVideoPromises);
+      const aboutVideoMap: {[key: string]: VideoRecord | null} = {};
+      aboutVideoResults.forEach(({ type, video }) => {
+        aboutVideoMap[type] = video;
+      });
+      setAboutVideos(aboutVideoMap);
+
+      // Load analytics data
+      await loadAnalyticsData();
     } catch (error) {
       console.error('Error loading initial data:', error);
+    }
+  };
+
+  const loadAnalyticsData = async () => {
+    try {
+      setAnalyticsLoading(true);
+      const data = await fetchSummary(30); // Last 30 days
+      setAnalyticsData(data.data);
+    } catch (error) {
+      console.error('Error loading analytics data:', error);
+    } finally {
+      setAnalyticsLoading(false);
     }
   };
 
@@ -107,7 +160,7 @@ export default function AdminDashboard() {
 
     try {
       for (const file of Array.from(files)) {
-        const uploadedVideo = await uploadVideo(file, 'portfolio');
+        const uploadedVideo = await createVideo(file.name, '/placeholder-url', 'portfolio');
         setPortfolioVideos(prev => [...prev, uploadedVideo]);
       }
     } catch (error) {
@@ -124,7 +177,7 @@ export default function AdminDashboard() {
     if (!file) return;
 
     try {
-      const uploadedVideo = await uploadVideo(file, 'hero');
+      const uploadedVideo = await createVideo(file.name, '/placeholder-url', 'hero');
       setHeroVideo(uploadedVideo);
     } catch (error) {
       console.error('Error uploading hero video:', error);
@@ -135,9 +188,74 @@ export default function AdminDashboard() {
     event.target.value = '';
   };
 
-  const handleDeletePortfolioVideo = async (id: string, filePath: string) => {
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+
     try {
-      await deleteVideo(id, filePath);
+      for (const file of Array.from(files)) {
+        // In a real implementation, you would upload to a file storage service
+        // For now, we'll use placeholder URLs
+        const uploadedPhoto = await createPhoto(file.name, '/placeholder-photo-url', 'portfolio', `Photo uploaded: ${file.name}`);
+        setPortfolioPhotos(prev => [...prev, uploadedPhoto]);
+      }
+    } catch (error) {
+      console.error('Error uploading photos:', error);
+      alert('Failed to upload photos. Please try again.');
+    }
+    
+    // Reset the input
+    event.target.value = '';
+  };
+
+  const handleDeletePhoto = async (id: string) => {
+    try {
+      await deletePhoto(id);
+      setPortfolioPhotos(prev => prev.filter(photo => photo.id !== id));
+    } catch (error) {
+      console.error('Error deleting photo:', error);
+      alert('Failed to delete photo. Please try again.');
+    }
+  };
+
+  const handleAboutVideoUpload = async (event: React.ChangeEvent<HTMLInputElement>, videoType: string) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const uploadedVideo = await createVideo(file.name, '/placeholder-url', videoType as any);
+      setAboutVideos(prev => ({
+        ...prev,
+        [videoType]: uploadedVideo
+      }));
+    } catch (error) {
+      console.error('Error uploading about video:', error);
+      alert('Failed to upload video. Please try again.');
+    }
+    
+    // Reset the input
+    event.target.value = '';
+  };
+
+  const handleDeleteAboutVideo = async (videoType: string) => {
+    const video = aboutVideos[videoType];
+    if (!video) return;
+
+    try {
+      await deleteVideo(video.id);
+      setAboutVideos(prev => ({
+        ...prev,
+        [videoType]: null
+      }));
+    } catch (error) {
+      console.error('Error deleting about video:', error);
+      alert('Failed to delete video. Please try again.');
+    }
+  };
+
+  const handleDeletePortfolioVideo = async (id: string) => {
+    try {
+      await deleteVideo(id);
       setPortfolioVideos(prev => prev.filter(video => video.id !== id));
     } catch (error) {
       console.error('Error deleting video:', error);
@@ -216,7 +334,7 @@ export default function AdminDashboard() {
     setSelectedDate(""); // Clear selection when changing months
   };
 
-  // Analytics data from Supabase
+  // Analytics data from database
   const analytics = {
     totalInquiries: contactForms.length,
     bookingsThisMonth: contactForms.filter(cf => {
@@ -224,8 +342,12 @@ export default function AdminDashboard() {
       const now = new Date();
       return formDate.getMonth() === now.getMonth() && formDate.getFullYear() === now.getFullYear();
     }).length,
-    portfolioViews: 1247, // This would be tracked separately
-    contactFormSubmissions: contactForms.filter(cf => cf.status === 'new').length
+    portfolioViews: analyticsData?.portfolioViews || 0,
+    contactFormSubmissions: contactForms.filter(cf => cf.status === 'new').length,
+    totalPageViews: analyticsData?.summary?.find((s: any) => s.event_type === 'page_view')?.total_count || 0,
+    uniqueVisitors: analyticsData?.summary?.find((s: any) => s.event_type === 'page_view')?.unique_visitors || 0,
+    videoViews: analyticsData?.summary?.find((s: any) => s.event_type === 'video_view')?.total_count || 0,
+    photoViews: analyticsData?.summary?.find((s: any) => s.event_type === 'photo_view')?.total_count || 0
   };
 
   const calendarDays = generateCalendarDays();
@@ -257,7 +379,9 @@ export default function AdminDashboard() {
             { id: "bookings", label: "Bookings", icon: "📋" },
             { id: "calendar", label: "Calendar", icon: "📅" },
             { id: "portfolio", label: "Portfolio", icon: "🎬" },
+            { id: "photos", label: "Photos", icon: "📸" },
             { id: "hero-video", label: "Hero Video", icon: "🎥" },
+            { id: "about-page", label: "About Page", icon: "📖" },
             { id: "inquiries", label: "Messages", icon: "💬" },
             { id: "callbacks", label: "Callbacks", icon: "📞" },
           ].map((tab) => (
@@ -309,24 +433,42 @@ export default function AdminDashboard() {
         {/* Overview Tab */}
         {activeTab === "overview" && (
           <div className="space-y-8">
-            <div>
-              <h2 className="text-3xl font-light text-white mb-2">Welcome back, Wadson</h2>
-              <p className="text-slate-300">Here&apos;s what&apos;s happening with your business today.</p>
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-3xl font-light text-white mb-2">Welcome back, Wadson</h2>
+                <p className="text-slate-300">Here&apos;s what&apos;s happening with your business today.</p>
+              </div>
+              <button
+                onClick={loadAnalyticsData}
+                disabled={analyticsLoading}
+                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-4 py-2 rounded-lg transition-all duration-200 disabled:opacity-50 flex items-center space-x-2"
+              >
+                <svg className={`w-4 h-4 ${analyticsLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span>{analyticsLoading ? 'Refreshing...' : 'Refresh'}</span>
+              </button>
             </div>
             
             {/* Modern Analytics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
-                { title: "Total Inquiries", value: analytics.totalInquiries, icon: "💬", color: "from-blue-500 to-blue-600" },
-                { title: "This Month", value: analytics.bookingsThisMonth, icon: "📅", color: "from-green-500 to-green-600" },
-                { title: "Portfolio Views", value: analytics.portfolioViews, icon: "👁️", color: "from-purple-500 to-purple-600" },
-                { title: "Form Submissions", value: analytics.contactFormSubmissions, icon: "📝", color: "from-pink-500 to-pink-600" },
+                { title: "Total Inquiries", value: analytics.totalInquiries, icon: "💬", color: "from-blue-500 to-blue-600", loading: false },
+                { title: "Portfolio Views", value: analytics.portfolioViews, icon: "👁️", color: "from-purple-500 to-purple-600", loading: analyticsLoading },
+                { title: "Video Views", value: analytics.videoViews, icon: "🎬", color: "from-green-500 to-green-600", loading: analyticsLoading },
+                { title: "Unique Visitors", value: analytics.uniqueVisitors, icon: "👥", color: "from-pink-500 to-pink-600", loading: analyticsLoading },
               ].map((card, index) => (
                 <div key={index} className="bg-slate-800/80 backdrop-blur-lg rounded-2xl p-6 border border-slate-700/50 hover:shadow-xl transition-shadow duration-300">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-slate-300 text-sm font-medium">{card.title}</p>
-                      <p className="text-3xl font-bold text-white mt-2">{card.value}</p>
+                      <p className="text-3xl font-bold text-white mt-2">
+                        {card.loading ? (
+                          <span className="text-lg text-slate-400">Loading...</span>
+                        ) : (
+                          card.value.toLocaleString()
+                        )}
+                      </p>
                     </div>
                     <div className={`w-12 h-12 bg-gradient-to-r ${card.color} rounded-xl flex items-center justify-center text-white text-xl`}>
                       {card.icon}
@@ -378,6 +520,36 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
+
+            {/* Popular Pages Analytics */}
+            {analyticsData?.popularPages && analyticsData.popularPages.length > 0 && (
+              <div className="bg-slate-800/80 backdrop-blur-lg rounded-2xl border border-slate-700/50">
+                <div className="p-6 border-b border-slate-700/50">
+                  <h3 className="text-xl font-semibold text-white">Popular Pages (Last 30 Days)</h3>
+                </div>
+                <div className="p-6">
+                  <div className="space-y-4">
+                    {analyticsData.popularPages.slice(0, 5).map((page, index: number) => (
+                      <div key={page.page_path} className="flex items-center justify-between p-4 bg-slate-700/50 rounded-xl">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                            {index + 1}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-white">{page.page_path}</p>
+                            <p className="text-sm text-slate-300">{page.unique_visitors} unique visitors</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-lg font-bold text-white">{page.views.toLocaleString()}</p>
+                          <p className="text-sm text-slate-400">views</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -952,7 +1124,7 @@ export default function AdminDashboard() {
                       <button 
                         onClick={() => {
                           if (confirm('Are you sure you want to delete this video?')) {
-                            handleDeletePortfolioVideo(video.id, video.file_path);
+                            handleDeletePortfolioVideo(video.id);
                           }
                         }}
                         className="flex-1 text-red-400 hover:text-red-300 text-sm font-medium py-2 px-3 border border-red-500 rounded-lg hover:bg-red-500/10 transition-colors"
@@ -964,6 +1136,91 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Photos Tab */}
+        {activeTab === "photos" && (
+          <div className="space-y-8">
+            <div>
+              <h2 className="text-3xl font-light text-white mb-2">Photo Gallery Management</h2>
+              <p className="text-slate-300">Upload and manage your wedding photography portfolio.</p>
+            </div>
+            
+            <div className="bg-slate-800/80 backdrop-blur-lg rounded-2xl p-6 border border-slate-700/50">
+              <h3 className="text-lg font-semibold text-white mb-4">Upload New Photos</h3>
+              <div className="border-2 border-dashed border-slate-600 rounded-xl p-8 text-center hover:border-purple-500 transition-colors">
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handlePhotoUpload}
+                  className="hidden"
+                  id="photo-upload"
+                />
+                <label
+                  htmlFor="photo-upload"
+                  className="cursor-pointer"
+                >
+                  <div className="space-y-4">
+                    <div className="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center mx-auto">
+                      <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-white font-medium">Drop photos here or click to upload</p>
+                      <p className="text-slate-400 text-sm">PNG, JPG, JPEG up to 10MB each</p>
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div className="bg-slate-800/80 backdrop-blur-lg rounded-2xl p-6 border border-slate-700/50">
+              <h3 className="text-lg font-semibold text-white mb-6">Portfolio Photos ({portfolioPhotos.length})</h3>
+              
+              {portfolioPhotos.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="text-6xl mb-4">📸</div>
+                  <p className="text-slate-300 text-lg mb-2">No photos uploaded yet</p>
+                  <p className="text-slate-400">Upload your first wedding photos to get started!</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {portfolioPhotos.map((photo) => (
+                    <div key={photo.id} className="relative group">
+                      <div className="aspect-square bg-slate-700 rounded-xl overflow-hidden">
+                        <img 
+                          src={photo.file_path} 
+                          alt={photo.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/60 transition-colors duration-300 flex items-center justify-center">
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 space-x-2">
+                            <button
+                              onClick={() => handleDeletePhoto(photo.id)}
+                              className="bg-red-600 hover:bg-red-700 text-white p-2 rounded-lg transition-colors"
+                              title="Delete photo"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-2">
+                        <p className="text-white text-sm font-medium truncate">{photo.name}</p>
+                        <p className="text-slate-400 text-xs">
+                          {new Date(photo.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1025,6 +1282,184 @@ export default function AdminDashboard() {
                     </svg>
                     <span>{videoLoading ? 'Uploading...' : 'Choose Video'}</span>
                   </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* About Page Tab */}
+        {activeTab === "about-page" && (
+          <div className="space-y-8">
+            <div>
+              <h2 className="text-3xl font-light text-white mb-2">About Page Video Management</h2>
+              <p className="text-slate-300">Manage all videos displayed on the About Us page.</p>
+            </div>
+
+            {/* Hero Section Video */}
+            <div className="bg-slate-800/80 backdrop-blur-lg rounded-2xl p-6 border border-slate-700/50">
+              <h3 className="text-lg font-semibold text-white mb-4">Hero Section Video</h3>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                  <div className="aspect-square bg-slate-700 rounded-xl overflow-hidden mb-4">
+                    {aboutVideos.about_hero ? (
+                      <video 
+                        src={aboutVideos.about_hero.file_path} 
+                        className="w-full h-full object-cover"
+                        muted
+                        controls
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <div className="text-center text-slate-400">
+                          <div className="text-4xl mb-2">🎬</div>
+                          <p>No hero video uploaded</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <input
+                    type="file"
+                    accept="video/*"
+                    onChange={(e) => handleAboutVideoUpload(e, 'about_hero')}
+                    className="hidden"
+                    id="about-hero-upload"
+                  />
+                  <label
+                    htmlFor="about-hero-upload"
+                    className="block w-full bg-purple-600 hover:bg-purple-700 text-white py-3 px-4 rounded-lg text-center cursor-pointer transition-colors"
+                  >
+                    Upload Hero Video
+                  </label>
+                  {aboutVideos.about_hero && (
+                    <button
+                      onClick={() => handleDeleteAboutVideo('about_hero')}
+                      className="w-full bg-red-600 hover:bg-red-700 text-white py-3 px-4 rounded-lg transition-colors"
+                    >
+                      Delete Current Video
+                    </button>
+                  )}
+                  <div className="text-sm text-slate-400">
+                    <p className="font-medium mb-1">Current video:</p>
+                    <p>{aboutVideos.about_hero ? aboutVideos.about_hero.name : 'None'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Timeline Videos */}
+            <div className="bg-slate-800/80 backdrop-blur-lg rounded-2xl p-6 border border-slate-700/50">
+              <h3 className="text-lg font-semibold text-white mb-6">Timeline Section Videos</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[
+                  { key: 'about_timeline_1', title: 'Getting Ready', icon: '💄' },
+                  { key: 'about_timeline_2', title: 'First Look', icon: '👀' },
+                  { key: 'about_timeline_3', title: 'Ceremony', icon: '💒' },
+                  { key: 'about_timeline_4', title: 'Portraits', icon: '📸' },
+                  { key: 'about_timeline_5', title: 'Reception', icon: '🎉' },
+                  { key: 'about_timeline_6', title: 'Golden Hour', icon: '🌅' },
+                ].map((section, index) => (
+                  <div key={section.key} className="space-y-4">
+                    <div className="text-center">
+                      <div className="text-2xl mb-1">{section.icon}</div>
+                      <h4 className="text-white font-medium">{section.title}</h4>
+                    </div>
+                    <div className="aspect-video bg-slate-700 rounded-xl overflow-hidden">
+                      {aboutVideos[section.key] ? (
+                        <video 
+                          src={aboutVideos[section.key]!.file_path} 
+                          className="w-full h-full object-cover"
+                          muted
+                          controls
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <div className="text-center text-slate-400">
+                            <div className="text-2xl mb-1">{section.icon}</div>
+                            <p className="text-xs">No video</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <input
+                        type="file"
+                        accept="video/*"
+                        onChange={(e) => handleAboutVideoUpload(e, section.key)}
+                        className="hidden"
+                        id={`${section.key}-upload`}
+                      />
+                      <label
+                        htmlFor={`${section.key}-upload`}
+                        className="block w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-3 rounded-lg text-center cursor-pointer transition-colors text-sm"
+                      >
+                        Upload
+                      </label>
+                      {aboutVideos[section.key] && (
+                        <button
+                          onClick={() => handleDeleteAboutVideo(section.key)}
+                          className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-3 rounded-lg transition-colors text-sm"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Behind the Scenes Video */}
+            <div className="bg-slate-800/80 backdrop-blur-lg rounded-2xl p-6 border border-slate-700/50">
+              <h3 className="text-lg font-semibold text-white mb-4">Behind the Scenes Video</h3>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                  <div className="aspect-video bg-slate-700 rounded-xl overflow-hidden mb-4">
+                    {aboutVideos.about_behind_scenes ? (
+                      <video 
+                        src={aboutVideos.about_behind_scenes.file_path} 
+                        className="w-full h-full object-cover"
+                        muted
+                        controls
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <div className="text-center text-slate-400">
+                          <div className="text-4xl mb-2">🎬</div>
+                          <p>No behind the scenes video</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <input
+                    type="file"
+                    accept="video/*"
+                    onChange={(e) => handleAboutVideoUpload(e, 'about_behind_scenes')}
+                    className="hidden"
+                    id="about-behind-scenes-upload"
+                  />
+                  <label
+                    htmlFor="about-behind-scenes-upload"
+                    className="block w-full bg-purple-600 hover:bg-purple-700 text-white py-3 px-4 rounded-lg text-center cursor-pointer transition-colors"
+                  >
+                    Upload Behind Scenes Video
+                  </label>
+                  {aboutVideos.about_behind_scenes && (
+                    <button
+                      onClick={() => handleDeleteAboutVideo('about_behind_scenes')}
+                      className="w-full bg-red-600 hover:bg-red-700 text-white py-3 px-4 rounded-lg transition-colors"
+                    >
+                      Delete Current Video
+                    </button>
+                  )}
+                  <div className="text-sm text-slate-400">
+                    <p className="font-medium mb-1">Current video:</p>
+                    <p>{aboutVideos.about_behind_scenes ? aboutVideos.about_behind_scenes.name : 'None'}</p>
+                  </div>
                 </div>
               </div>
             </div>

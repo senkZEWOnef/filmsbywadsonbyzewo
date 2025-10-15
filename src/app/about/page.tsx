@@ -4,12 +4,25 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
-import { useSupabaseVideos } from "@/hooks/useSupabase";
-import { VideoRecord } from "@/lib/supabase";
+import { useSupabaseVideos } from "@/hooks/useDatabase";
+import { usePageViewTracking } from '@/hooks/useAnalytics';
+import { VideoRecord } from "@/lib/database";
 
 export default function About() {
-  const [portfolioVideos, setPortfolioVideos] = useState<VideoRecord[]>([]);
+  const [aboutVideos, setAboutVideos] = useState<{[key: string]: VideoRecord | null}>({
+    about_hero: null,
+    about_timeline_1: null,
+    about_timeline_2: null,
+    about_timeline_3: null,
+    about_timeline_4: null,
+    about_timeline_5: null,
+    about_timeline_6: null,
+    about_behind_scenes: null,
+  });
   const { getVideos } = useSupabaseVideos();
+
+  // Track about page view
+  usePageViewTracking('/about');
 
   useEffect(() => {
     loadVideos();
@@ -17,8 +30,19 @@ export default function About() {
 
   const loadVideos = async () => {
     try {
-      const portfolioData = await getVideos("portfolio");
-      setPortfolioVideos(portfolioData);
+      // Load all about page videos
+      const aboutVideoTypes = ['about_hero', 'about_timeline_1', 'about_timeline_2', 'about_timeline_3', 'about_timeline_4', 'about_timeline_5', 'about_timeline_6', 'about_behind_scenes'];
+      const aboutVideoPromises = aboutVideoTypes.map(async (type) => {
+        const videos = await getVideos(type as any);
+        return { type, video: videos.length > 0 ? videos[0] : null };
+      });
+      
+      const aboutVideoResults = await Promise.all(aboutVideoPromises);
+      const aboutVideoMap: {[key: string]: VideoRecord | null} = {};
+      aboutVideoResults.forEach(({ type, video }) => {
+        aboutVideoMap[type] = video;
+      });
+      setAboutVideos(aboutVideoMap);
     } catch (error) {
       console.error("Error loading videos:", error);
     }
@@ -109,9 +133,9 @@ export default function About() {
             </div>
             <div className="relative">
               <div className="aspect-square bg-gradient-to-br from-purple-400 to-pink-400 rounded-2xl overflow-hidden shadow-2xl">
-                {portfolioVideos.length > 0 ? (
+                {aboutVideos.about_hero ? (
                   <video
-                    src={portfolioVideos[0].file_path}
+                    src={aboutVideos.about_hero.file_path}
                     className="w-full h-full object-cover"
                     autoPlay
                     muted
@@ -239,9 +263,9 @@ export default function About() {
 
                           <div className={index % 2 === 1 ? "lg:order-1" : ""}>
                             <div className="aspect-video bg-gradient-to-br from-slate-700 to-slate-600 rounded-xl overflow-hidden">
-                              {portfolioVideos[index] ? (
+                              {aboutVideos[`about_timeline_${index + 1}`] ? (
                                 <video
-                                  src={portfolioVideos[index].file_path}
+                                  src={aboutVideos[`about_timeline_${index + 1}`]!.file_path}
                                   className="w-full h-full object-cover"
                                   autoPlay
                                   muted
@@ -288,9 +312,9 @@ export default function About() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
               <div className="aspect-video bg-gradient-to-br from-purple-400 to-pink-400 rounded-xl overflow-hidden mb-8">
-                {portfolioVideos.length > 1 ? (
+                {aboutVideos.about_behind_scenes ? (
                   <video
-                    src={portfolioVideos[1].file_path}
+                    src={aboutVideos.about_behind_scenes.file_path}
                     className="w-full h-full object-cover"
                     autoPlay
                     muted

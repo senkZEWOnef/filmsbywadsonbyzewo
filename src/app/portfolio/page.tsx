@@ -1,94 +1,169 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
-import { useSupabaseVideos } from '@/hooks/useSupabase';
-import { VideoRecord } from '@/lib/supabase';
+import { useSupabaseVideos, useSupabasePhotos } from '@/hooks/useDatabase';
+import { usePageViewTracking, useAnalytics } from '@/hooks/useAnalytics';
+import { VideoRecord, PhotoRecord } from '@/lib/database';
 
 export default function Portfolio() {
   const [portfolioVideos, setPortfolioVideos] = useState<VideoRecord[]>([]);
+  const [portfolioPhotos, setPortfolioPhotos] = useState<PhotoRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedVideo, setSelectedVideo] = useState<VideoRecord | null>(null);
-  const [selectedPhoto, setSelectedPhoto] = useState<{id: number; name: string; url: string} | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<PhotoRecord | null>(null);
   const [activeTab, setActiveTab] = useState<'videos' | 'snaps'>('videos');
-  const [showMoreVideos, setShowMoreVideos] = useState(false);
-  const [showMoreSnaps, setShowMoreSnaps] = useState(false);
+  const [currentVideoPage, setCurrentVideoPage] = useState(0);
+  const [currentPhotoPage, setCurrentPhotoPage] = useState(0);
+  const videosPerPage = 4;
+  const photosPerPage = 4;
   const { getVideos } = useSupabaseVideos();
+  const { getPhotos } = useSupabasePhotos();
+  const { trackVideoView, trackPhotoView } = useAnalytics();
 
-  // Sample photos data - in production this would come from Supabase
-  const samplePhotos = [
-    { id: 1, name: "Golden Hour Romance", url: "https://images.unsplash.com/photo-1519741497674-611481863552?w=800" },
-    { id: 2, name: "First Dance Magic", url: "https://images.unsplash.com/photo-1606216794074-735e91aa2c92?w=800" },
-    { id: 3, name: "Ceremony Bliss", url: "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=800" },
-    { id: 4, name: "Bridal Portrait", url: "https://images.unsplash.com/photo-1594736797933-d0d62cec71b8?w=800" },
-    { id: 5, name: "Ring Exchange", url: "https://images.unsplash.com/photo-1591604466107-ec97de577aff?w=800" },
-    { id: 6, name: "Reception Joy", url: "https://images.unsplash.com/photo-1527529482837-4698179dc6ce?w=800" },
-    { id: 7, name: "Couple's Portrait", url: "https://images.unsplash.com/photo-1583939003579-730e3918a45a?w=800" },
-    { id: 8, name: "Wedding Details", url: "https://images.unsplash.com/photo-1465495976277-4387d4b0e4a6?w=800" },
-    { id: 9, name: "Sunset Romance", url: "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=800" },
-    { id: 10, name: "Celebration Dance", url: "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=800" },
-    { id: 11, name: "Intimate Moments", url: "https://images.unsplash.com/photo-1520854221256-17451cc331bf?w=800" },
-    { id: 12, name: "Venue Beauty", url: "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=800" },
-    { id: 13, name: "Bridal Details", url: "https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?w=800" },
-    { id: 14, name: "Garden Ceremony", url: "https://images.unsplash.com/photo-1606800052052-a08af7148866?w=800" },
-    { id: 15, name: "Evening Reception", url: "https://images.unsplash.com/photo-1519167758481-83f29c732152?w=800" },
-    { id: 16, name: "Romantic Kiss", url: "https://images.unsplash.com/photo-1537633552985-df8429e8048b?w=800" },
-  ];
-  
+  // Track page view
+  usePageViewTracking('/portfolio', { tab: activeTab });
+
   useEffect(() => {
-    loadVideos();
+    loadData();
   }, []);
-  
-  const loadVideos = async () => {
+
+  const loadData = async () => {
     try {
       setLoading(true);
-      const portfolioData = await getVideos('portfolio');
-      setPortfolioVideos(portfolioData);
+      const [videosData, photosData] = await Promise.all([
+        getVideos('portfolio'),
+        getPhotos('portfolio')
+      ]);
+      setPortfolioVideos(videosData);
+      setPortfolioPhotos(photosData);
     } catch (error) {
-      console.error('Error loading videos:', error);
+      console.error('Error loading portfolio data:', error);
     } finally {
       setLoading(false);
     }
   };
-
+  
   const getDisplayVideos = () => {
-    return showMoreVideos ? portfolioVideos : portfolioVideos.slice(0, 8);
+    const startIndex = currentVideoPage * videosPerPage;
+    const endIndex = startIndex + videosPerPage;
+    return portfolioVideos.slice(startIndex, endIndex);
   };
 
   const getDisplayPhotos = () => {
-    return showMoreSnaps ? samplePhotos : samplePhotos.slice(0, 8);
+    const startIndex = currentPhotoPage * photosPerPage;
+    const endIndex = startIndex + photosPerPage;
+    return portfolioPhotos.slice(startIndex, endIndex);
   };
+
+  const getTotalVideoPages = () => Math.ceil(portfolioVideos.length / videosPerPage);
+  const getTotalPhotoPages = () => Math.ceil(portfolioPhotos.length / photosPerPage);
+
+  const nextVideoPage = () => {
+    setCurrentVideoPage(prev => (prev + 1) % getTotalVideoPages());
+  };
+
+  const prevVideoPage = () => {
+    setCurrentVideoPage(prev => prev === 0 ? getTotalVideoPages() - 1 : prev - 1);
+  };
+
+  const nextPhotoPage = () => {
+    setCurrentPhotoPage(prev => (prev + 1) % getTotalPhotoPages());
+  };
+
+  const prevPhotoPage = () => {
+    setCurrentPhotoPage(prev => prev === 0 ? getTotalPhotoPages() - 1 : prev - 1);
+  };
+
+  const nextVideo = useCallback(() => {
+    if (!selectedVideo) return;
+    const currentIndex = portfolioVideos.findIndex(v => v.id === selectedVideo.id);
+    const nextIndex = (currentIndex + 1) % portfolioVideos.length;
+    setSelectedVideo(portfolioVideos[nextIndex]);
+  }, [selectedVideo, portfolioVideos]);
+
+  const prevVideo = useCallback(() => {
+    if (!selectedVideo) return;
+    const currentIndex = portfolioVideos.findIndex(v => v.id === selectedVideo.id);
+    const prevIndex = currentIndex === 0 ? portfolioVideos.length - 1 : currentIndex - 1;
+    setSelectedVideo(portfolioVideos[prevIndex]);
+  }, [selectedVideo, portfolioVideos]);
+
+  const nextPhoto = useCallback(() => {
+    if (!selectedPhoto) return;
+    const currentIndex = portfolioPhotos.findIndex(p => p.id === selectedPhoto.id);
+    const nextIndex = (currentIndex + 1) % portfolioPhotos.length;
+    setSelectedPhoto(portfolioPhotos[nextIndex]);
+  }, [selectedPhoto, portfolioPhotos]);
+
+  const prevPhoto = useCallback(() => {
+    if (!selectedPhoto) return;
+    const currentIndex = portfolioPhotos.findIndex(p => p.id === selectedPhoto.id);
+    const prevIndex = currentIndex === 0 ? portfolioPhotos.length - 1 : currentIndex - 1;
+    setSelectedPhoto(portfolioPhotos[prevIndex]);
+  }, [selectedPhoto, portfolioPhotos]);
+
+  // Keyboard navigation
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    if (selectedVideo) {
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        prevVideo();
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        nextVideo();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        setSelectedVideo(null);
+      }
+    } else if (selectedPhoto) {
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        prevPhoto();
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        nextPhoto();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        setSelectedPhoto(null);
+      }
+    }
+  }, [selectedVideo, selectedPhoto, prevVideo, nextVideo, prevPhoto, nextPhoto]);
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
 
   return (
     <div className="min-h-screen bg-slate-900">
       <Navigation />
       
       {/* Hero Section */}
-      <section className="relative pt-20 pb-12 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-        <div className="absolute inset-0 bg-black/20"></div>
+      <section className="relative pt-20 pb-12 bg-gradient-to-br from-rose-100 via-pink-50 to-purple-100">
         <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 text-center">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-light text-white mb-6 tracking-wide">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-light text-slate-800 mb-6 tracking-wide">
             PORTFOLIO
           </h1>
-          <p className="text-xl sm:text-2xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-xl sm:text-2xl text-slate-700 max-w-3xl mx-auto leading-relaxed">
             Every frame tells a story, every story becomes a legacy
           </p>
         </div>
       </section>
 
       {/* Tab Navigation */}
-      <section className="bg-slate-800 border-b border-slate-700">
+      <section className="bg-gradient-to-br from-rose-100 via-pink-50 to-purple-100">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="flex justify-center">
-            <div className="flex bg-slate-700/50 rounded-full p-1 mt-8">
+            <div className="flex bg-white/70 backdrop-blur-sm rounded-full p-1 mt-8 shadow-lg">
               <button
                 onClick={() => setActiveTab('videos')}
                 className={`px-8 py-3 rounded-full font-medium transition-all duration-300 ${
                   activeTab === 'videos'
-                    ? 'bg-purple-600 text-white shadow-lg'
-                    : 'text-gray-300 hover:text-white'
+                    ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg'
+                    : 'text-slate-700 hover:text-slate-900 hover:bg-white/50'
                 }`}
               >
                 🎬 Films
@@ -97,8 +172,8 @@ export default function Portfolio() {
                 onClick={() => setActiveTab('snaps')}
                 className={`px-8 py-3 rounded-full font-medium transition-all duration-300 ${
                   activeTab === 'snaps'
-                    ? 'bg-purple-600 text-white shadow-lg'
-                    : 'text-gray-300 hover:text-white'
+                    ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg'
+                    : 'text-slate-700 hover:text-slate-900 hover:bg-white/50'
                 }`}
               >
                 📸 Snaps
@@ -130,44 +205,80 @@ export default function Portfolio() {
                 </div>
               ) : getDisplayVideos().length > 0 ? (
                 <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-                    {getDisplayVideos().map((video) => (
-                      <div 
-                        key={video.id} 
-                        className="group cursor-pointer"
-                        onClick={() => setSelectedVideo(video)}
-                      >
-                        <div className="relative aspect-[4/5] bg-slate-700 rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-500 group-hover:scale-105">
-                          <video 
-                            src={video.file_path} 
-                            className="w-full h-full object-cover"
-                            preload="metadata"
-                            muted
-                          />
-                          <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-colors duration-300"></div>
-                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                            <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center backdrop-blur-sm">
-                              <svg className="w-6 h-6 text-slate-900 ml-1" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M8 5v14l11-7z"/>
-                              </svg>
+                  <div className="relative">
+                    {/* Navigation Arrows */}
+                    {getTotalVideoPages() > 1 && (
+                      <>
+                        <button
+                          onClick={prevVideoPage}
+                          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-6 z-10 w-12 h-12 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-lg backdrop-blur-sm transition-all duration-300 hover:scale-110"
+                        >
+                          <svg className="w-6 h-6 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={nextVideoPage}
+                          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-6 z-10 w-12 h-12 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-lg backdrop-blur-sm transition-all duration-300 hover:scale-110"
+                        >
+                          <svg className="w-6 h-6 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                      </>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                      {getDisplayVideos().map((video) => (
+                        <div 
+                          key={video.id} 
+                          className="group cursor-pointer"
+                          onClick={() => {
+                            setSelectedVideo(video);
+                            trackVideoView(video.id, video.name, '/portfolio');
+                          }}
+                        >
+                          <div className="relative aspect-[4/5] bg-slate-700 rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-500 group-hover:scale-105">
+                            <video 
+                              src={video.file_path} 
+                              className="w-full h-full object-cover"
+                              preload="metadata"
+                              muted
+                            />
+                            <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-colors duration-300"></div>
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                              <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center backdrop-blur-sm">
+                                <svg className="w-6 h-6 text-slate-900 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M8 5v14l11-7z"/>
+                                </svg>
+                              </div>
+                            </div>
+                            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
+                              <h3 className="text-white font-medium text-sm">{video.name}</h3>
                             </div>
                           </div>
-                          <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
-                            <h3 className="text-white font-medium text-sm">{video.name}</h3>
-                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
 
-                  {portfolioVideos.length > 8 && (
-                    <div className="text-center">
-                      <button
-                        onClick={() => setShowMoreVideos(!showMoreVideos)}
-                        className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-full font-medium transition-colors duration-300"
-                      >
-                        {showMoreVideos ? 'Show Less' : `View ${portfolioVideos.length - 8} More Films`}
-                      </button>
+                  {/* Page Indicators */}
+                  {getTotalVideoPages() > 1 && (
+                    <div className="flex justify-center items-center space-x-2 mb-8">
+                      {Array.from({ length: getTotalVideoPages() }, (_, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setCurrentVideoPage(i)}
+                          className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                            i === currentVideoPage 
+                              ? 'bg-purple-600 scale-125' 
+                              : 'bg-white/50 hover:bg-white/70'
+                          }`}
+                        />
+                      ))}
+                      <span className="text-white/70 ml-4 text-sm">
+                        {currentVideoPage + 1} of {getTotalVideoPages()}
+                      </span>
                     </div>
                   )}
                 </>
@@ -193,36 +304,84 @@ export default function Portfolio() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-                {getDisplayPhotos().map((photo) => (
-                  <div 
-                    key={photo.id} 
-                    className="group cursor-pointer"
-                    onClick={() => setSelectedPhoto(photo)}
-                  >
-                    <div className="relative aspect-[4/5] bg-slate-700 rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-500 group-hover:scale-105">
-                      <img 
-                        src={photo.url} 
-                        alt={photo.name}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors duration-300"></div>
-                      <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <h3 className="text-white font-medium text-sm">{photo.name}</h3>
-                      </div>
+              {getDisplayPhotos().length > 0 ? (
+                <>
+                  <div className="relative">
+                    {/* Navigation Arrows */}
+                    {getTotalPhotoPages() > 1 && (
+                      <>
+                        <button
+                          onClick={prevPhotoPage}
+                          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-6 z-10 w-12 h-12 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-lg backdrop-blur-sm transition-all duration-300 hover:scale-110"
+                        >
+                          <svg className="w-6 h-6 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={nextPhotoPage}
+                          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-6 z-10 w-12 h-12 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-lg backdrop-blur-sm transition-all duration-300 hover:scale-110"
+                        >
+                          <svg className="w-6 h-6 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                      </>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                      {getDisplayPhotos().map((photo) => (
+                        <div 
+                          key={photo.id} 
+                          className="group cursor-pointer"
+                          onClick={() => {
+                            setSelectedPhoto(photo);
+                            trackPhotoView(photo.id, photo.name, '/portfolio');
+                          }}
+                        >
+                          <div className="relative aspect-[4/5] bg-slate-700 rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-500 group-hover:scale-105">
+                            <img 
+                              src={photo.file_path} 
+                              alt={photo.name}
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors duration-300"></div>
+                            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                              <h3 className="text-white font-medium text-sm">{photo.name}</h3>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                ))}
-              </div>
 
-              {samplePhotos.length > 8 && (
-                <div className="text-center">
-                  <button
-                    onClick={() => setShowMoreSnaps(!showMoreSnaps)}
-                    className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-full font-medium transition-colors duration-300"
-                  >
-                    {showMoreSnaps ? 'Show Less' : `View ${samplePhotos.length - 8} More Snaps`}
-                  </button>
+                  {/* Page Indicators */}
+                  {getTotalPhotoPages() > 1 && (
+                    <div className="flex justify-center items-center space-x-2 mb-8">
+                      {Array.from({ length: getTotalPhotoPages() }, (_, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setCurrentPhotoPage(i)}
+                          className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                            i === currentPhotoPage 
+                              ? 'bg-purple-600 scale-125' 
+                              : 'bg-white/50 hover:bg-white/70'
+                          }`}
+                        />
+                      ))}
+                      <span className="text-white/70 ml-4 text-sm">
+                        {currentPhotoPage + 1} of {getTotalPhotoPages()}
+                      </span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-20">
+                  <div className="text-6xl mb-6">📸</div>
+                  <h3 className="text-2xl font-semibold text-white mb-4">No Photos Yet</h3>
+                  <p className="text-gray-300 max-w-md mx-auto">
+                    Our photography collection is being curated. Check back soon to see our latest wedding photos!
+                  </p>
                 </div>
               )}
             </div>
@@ -242,6 +401,29 @@ export default function Portfolio() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
+            
+            {/* Navigation Arrows */}
+            {portfolioVideos.length > 1 && (
+              <>
+                <button
+                  onClick={prevVideo}
+                  className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-16 z-10 w-12 h-12 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-lg backdrop-blur-sm transition-all duration-300 hover:scale-110"
+                >
+                  <svg className="w-6 h-6 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <button
+                  onClick={nextVideo}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-16 z-10 w-12 h-12 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-lg backdrop-blur-sm transition-all duration-300 hover:scale-110"
+                >
+                  <svg className="w-6 h-6 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </>
+            )}
+
             <div className="bg-slate-900 rounded-2xl overflow-hidden shadow-2xl">
               <div className="aspect-video">
                 <video 
@@ -252,14 +434,23 @@ export default function Portfolio() {
                 />
               </div>
               <div className="p-6">
-                <h3 className="text-2xl font-semibold text-white mb-2">{selectedVideo.name}</h3>
-                <p className="text-gray-300">
-                  Created {new Date(selectedVideo.created_at).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
-                </p>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-2xl font-semibold text-white mb-2">{selectedVideo.name}</h3>
+                    <p className="text-gray-300">
+                      Created {new Date(selectedVideo.created_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </p>
+                  </div>
+                  {portfolioVideos.length > 1 && (
+                    <div className="text-white/70 text-sm">
+                      {portfolioVideos.findIndex(v => v.id === selectedVideo.id) + 1} of {portfolioVideos.length}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -278,17 +469,56 @@ export default function Portfolio() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
+
+            {/* Navigation Arrows */}
+            {portfolioPhotos.length > 1 && (
+              <>
+                <button
+                  onClick={prevPhoto}
+                  className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-16 z-10 w-12 h-12 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-lg backdrop-blur-sm transition-all duration-300 hover:scale-110"
+                >
+                  <svg className="w-6 h-6 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <button
+                  onClick={nextPhoto}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-16 z-10 w-12 h-12 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-lg backdrop-blur-sm transition-all duration-300 hover:scale-110"
+                >
+                  <svg className="w-6 h-6 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </>
+            )}
+
             <div className="bg-slate-900 rounded-2xl overflow-hidden shadow-2xl">
               <div className="aspect-[4/3]">
                 <img 
-                  src={selectedPhoto.url} 
+                  src={selectedPhoto.file_path} 
                   alt={selectedPhoto.name}
                   className="w-full h-full object-cover"
                 />
               </div>
               <div className="p-6">
-                <h3 className="text-2xl font-semibold text-white mb-2">{selectedPhoto.name}</h3>
-                <p className="text-gray-300">Professional wedding photography</p>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-2xl font-semibold text-white mb-2">{selectedPhoto.name}</h3>
+                    <p className="text-gray-300">{selectedPhoto.description || 'Professional wedding photography'}</p>
+                    <p className="text-gray-400 text-sm mt-2">
+                      Created {new Date(selectedPhoto.created_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </p>
+                  </div>
+                  {portfolioPhotos.length > 1 && (
+                    <div className="text-white/70 text-sm">
+                      {portfolioPhotos.findIndex(p => p.id === selectedPhoto.id) + 1} of {portfolioPhotos.length}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

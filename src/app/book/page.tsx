@@ -4,8 +4,9 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
-import { useSupabaseCalendar, useSupabaseBookings } from '@/hooks/useSupabase';
-import { CalendarRecord } from '@/lib/supabase';
+import { useSupabaseCalendar, useSupabaseBookings } from '@/hooks/useDatabase';
+import { usePageViewTracking, useAnalytics } from '@/hooks/useAnalytics';
+import { CalendarRecord } from '@/lib/database';
 
 export default function BookPage() {
   const [selectedDate, setSelectedDate] = useState<string>("");
@@ -32,6 +33,10 @@ export default function BookPage() {
 
   const { getCalendarData, loading: calendarLoading } = useSupabaseCalendar();
   const { createBooking, loading: bookingLoading } = useSupabaseBookings();
+  const { trackBookingFormView } = useAnalytics();
+
+  // Track booking page view
+  usePageViewTracking('/book', { step: currentStep });
 
   useEffect(() => {
     const today = new Date();
@@ -39,6 +44,13 @@ export default function BookPage() {
     setCurrentYear(today.getFullYear());
     loadCalendarData();
   }, []);
+
+  // Track when user progresses to booking form
+  useEffect(() => {
+    if (currentStep === 2) {
+      trackBookingFormView('/book');
+    }
+  }, [currentStep, trackBookingFormView]);
 
   const loadCalendarData = async () => {
     try {

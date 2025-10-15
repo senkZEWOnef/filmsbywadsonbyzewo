@@ -5,8 +5,9 @@ import Image from "next/image";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import AvailabilitySection from "@/components/AvailabilitySection";
-import { useSupabaseVideos, useSupabaseContactForms, useSupabaseCalendar } from '@/hooks/useSupabase';
-import { VideoRecord } from '@/lib/supabase';
+import { useSupabaseVideos, useSupabaseContactForms, useSupabaseCalendar } from '@/hooks/useDatabase';
+import { usePageViewTracking, useAnalytics } from '@/hooks/useAnalytics';
+import { VideoRecord } from '@/lib/database';
 
 export default function Home() {
   const [formData, setFormData] = useState({
@@ -30,6 +31,10 @@ export default function Home() {
   const { getVideos } = useSupabaseVideos();
   const { submitContactForm, loading: formLoading } = useSupabaseContactForms();
   const { getCalendarData } = useSupabaseCalendar();
+  const { trackContactFormView } = useAnalytics();
+
+  // Track homepage view
+  usePageViewTracking('/');
   
   useEffect(() => {
     loadVideos();
