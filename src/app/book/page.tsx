@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
@@ -31,28 +31,14 @@ export default function BookPage() {
     referral_source: ""
   });
 
-  const { getCalendarData, loading: calendarLoading } = useSupabaseCalendar();
+  const { getCalendarData } = useSupabaseCalendar();
   const { createBooking, loading: bookingLoading } = useSupabaseBookings();
   const { trackBookingFormView } = useAnalytics();
 
   // Track booking page view
   usePageViewTracking('/book', { step: currentStep });
 
-  useEffect(() => {
-    const today = new Date();
-    setCurrentMonth(today.getMonth());
-    setCurrentYear(today.getFullYear());
-    loadCalendarData();
-  }, []);
-
-  // Track when user progresses to booking form
-  useEffect(() => {
-    if (currentStep === 2) {
-      trackBookingFormView('/book');
-    }
-  }, [currentStep, trackBookingFormView]);
-
-  const loadCalendarData = async () => {
+  const loadCalendarData = useCallback(async () => {
     try {
       const calendarRecords = await getCalendarData();
       const calendarMap: {[key: string]: string} = {};
@@ -63,7 +49,21 @@ export default function BookPage() {
     } catch (error) {
       console.error('Error loading calendar data:', error);
     }
-  };
+  }, [getCalendarData]);
+
+  useEffect(() => {
+    const today = new Date();
+    setCurrentMonth(today.getMonth());
+    setCurrentYear(today.getFullYear());
+    loadCalendarData();
+  }, [loadCalendarData]);
+
+  // Track when user progresses to booking form
+  useEffect(() => {
+    if (currentStep === 2) {
+      trackBookingFormView('/book');
+    }
+  }, [currentStep, trackBookingFormView]);
 
   const generateCalendarDays = () => {
     const today = new Date();

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSupabaseVideos, useSupabaseCalendar, useSupabaseBookings, useSupabaseContactForms, useSupabaseCallbacks, useSupabasePhotos } from '@/hooks/useDatabase';
 import { useAnalyticsData } from '@/hooks/useAnalytics';
-import { VideoRecord, BookingRecord, CalendarRecord, ContactFormRecord, CallbackRequest, PhotoRecord } from '@/lib/database';
+import { VideoRecord, VideoType, BookingRecord, ContactFormRecord, CallbackRequest, PhotoRecord } from '@/lib/database';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
@@ -39,30 +39,26 @@ export default function AdminDashboard() {
 
   // Supabase hooks
   const { createVideo, getVideos, deleteVideo, updateVideoName, loading: videoLoading, error: videoError } = useSupabaseVideos();
-  const { createPhoto, getPhotos, deletePhoto, updatePhoto, loading: photoLoading, error: photoError } = useSupabasePhotos();
+  const { createPhoto, getPhotos, deletePhoto } = useSupabasePhotos();
   const { updateCalendarDate, getCalendarData, loading: calendarLoading, error: calendarError } = useSupabaseCalendar();
   const { getBookings, updateBookingStatus, deleteBooking, loading: bookingLoading, error: bookingError } = useSupabaseBookings();
   const { getContactForms, updateContactFormStatus, loading: contactFormLoading, error: contactFormError } = useSupabaseContactForms();
   const { getCallbackRequests, updateCallbackStatus, deleteCallbackRequest, loading: callbackLoading, error: callbackError } = useSupabaseCallbacks();
   const { fetchSummary } = useAnalyticsData();
 
-  useEffect(() => {
-    const isLoggedIn = localStorage.getItem("adminLoggedIn");
-    if (!isLoggedIn) {
-      router.push("/admin");
-      return;
+  const loadAnalyticsData = useCallback(async () => {
+    try {
+      setAnalyticsLoading(true);
+      const data = await fetchSummary(30); // Last 30 days
+      setAnalyticsData(data.data);
+    } catch (error) {
+      console.error('Error loading analytics data:', error);
+    } finally {
+      setAnalyticsLoading(false);
     }
+  }, [fetchSummary]);
 
-    // Initialize calendar to current month
-    const today = new Date();
-    setCurrentAdminMonth(today.getMonth());
-    setCurrentAdminYear(today.getFullYear());
-    
-    // Load data from Supabase
-    loadInitialData();
-  }, [router]);
-
-  const loadInitialData = async () => {
+  const loadInitialData = useCallback(async () => {
     try {
       // Load portfolio videos
       const portfolioData = await getVideos('portfolio');
@@ -99,9 +95,9 @@ export default function AdminDashboard() {
       setCallbackRequests(callbackData);
 
       // Load about page videos
-      const aboutVideoTypes = ['about_hero', 'about_timeline_1', 'about_timeline_2', 'about_timeline_3', 'about_timeline_4', 'about_timeline_5', 'about_timeline_6', 'about_behind_scenes'];
+      const aboutVideoTypes: VideoType[] = ['about_hero', 'about_timeline_1', 'about_timeline_2', 'about_timeline_3', 'about_timeline_4', 'about_timeline_5', 'about_timeline_6', 'about_behind_scenes'];
       const aboutVideoPromises = aboutVideoTypes.map(async (type) => {
-        const videos = await getVideos(type as any);
+        const videos = await getVideos(type);
         return { type, video: videos.length > 0 ? videos[0] : null };
       });
       
@@ -117,19 +113,23 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error('Error loading initial data:', error);
     }
-  };
+  }, [getVideos, getPhotos, getCalendarData, getBookings, getContactForms, getCallbackRequests, loadAnalyticsData]);
 
-  const loadAnalyticsData = async () => {
-    try {
-      setAnalyticsLoading(true);
-      const data = await fetchSummary(30); // Last 30 days
-      setAnalyticsData(data.data);
-    } catch (error) {
-      console.error('Error loading analytics data:', error);
-    } finally {
-      setAnalyticsLoading(false);
+  useEffect(() => {
+    const isLoggedIn = localStorage.getItem("adminLoggedIn");
+    if (!isLoggedIn) {
+      router.push("/admin");
+      return;
     }
-  };
+
+    // Initialize calendar to current month
+    const today = new Date();
+    setCurrentAdminMonth(today.getMonth());
+    setCurrentAdminYear(today.getFullYear());
+    
+    // Load data from Supabase
+    loadInitialData();
+  }, [router, loadInitialData]);
 
   const logout = () => {
     localStorage.removeItem("adminLoggedIn");
@@ -218,12 +218,12 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleAboutVideoUpload = async (event: React.ChangeEvent<HTMLInputElement>, videoType: string) => {
+  const handleAboutVideoUpload = async (event: React.ChangeEvent<HTMLInputElement>, videoType: VideoType) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     try {
-      const uploadedVideo = await createVideo(file.name, '/placeholder-url', videoType as any);
+      const uploadedVideo = await createVideo(file.name, '/placeholder-url', videoType);
       setAboutVideos(prev => ({
         ...prev,
         [videoType]: uploadedVideo
@@ -344,10 +344,10 @@ export default function AdminDashboard() {
     }).length,
     portfolioViews: analyticsData?.portfolioViews || 0,
     contactFormSubmissions: contactForms.filter(cf => cf.status === 'new').length,
-    totalPageViews: analyticsData?.summary?.find((s: any) => s.event_type === 'page_view')?.total_count || 0,
-    uniqueVisitors: analyticsData?.summary?.find((s: any) => s.event_type === 'page_view')?.unique_visitors || 0,
-    videoViews: analyticsData?.summary?.find((s: any) => s.event_type === 'video_view')?.total_count || 0,
-    photoViews: analyticsData?.summary?.find((s: any) => s.event_type === 'photo_view')?.total_count || 0
+    totalPageViews: analyticsData?.summary?.find((s) => s.event_type === 'page_view')?.total_count || 0,
+    uniqueVisitors: analyticsData?.summary?.find((s) => s.event_type === 'page_view')?.unique_visitors || 0,
+    videoViews: analyticsData?.summary?.find((s) => s.event_type === 'video_view')?.total_count || 0,
+    photoViews: analyticsData?.summary?.find((s) => s.event_type === 'photo_view')?.total_count || 0
   };
 
   const calendarDays = generateCalendarDays();
@@ -1353,14 +1353,14 @@ export default function AdminDashboard() {
             <div className="bg-slate-800/80 backdrop-blur-lg rounded-2xl p-6 border border-slate-700/50">
               <h3 className="text-lg font-semibold text-white mb-6">Timeline Section Videos</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[
+                {([
                   { key: 'about_timeline_1', title: 'Getting Ready', icon: '💄' },
                   { key: 'about_timeline_2', title: 'First Look', icon: '👀' },
                   { key: 'about_timeline_3', title: 'Ceremony', icon: '💒' },
                   { key: 'about_timeline_4', title: 'Portraits', icon: '📸' },
                   { key: 'about_timeline_5', title: 'Reception', icon: '🎉' },
                   { key: 'about_timeline_6', title: 'Golden Hour', icon: '🌅' },
-                ].map((section, index) => (
+                ] as Array<{ key: VideoType; title: string; icon: string }>).map((section) => (
                   <div key={section.key} className="space-y-4">
                     <div className="text-center">
                       <div className="text-2xl mb-1">{section.icon}</div>

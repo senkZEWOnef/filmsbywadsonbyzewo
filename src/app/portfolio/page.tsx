@@ -26,11 +26,7 @@ export default function Portfolio() {
   // Track page view
   usePageViewTracking('/portfolio', { tab: activeTab });
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [videosData, photosData] = await Promise.all([
@@ -44,7 +40,11 @@ export default function Portfolio() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getVideos, getPhotos]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
   
   const getDisplayVideos = () => {
     const startIndex = currentVideoPage * videosPerPage;

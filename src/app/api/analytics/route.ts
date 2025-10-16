@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     // Get client information
     const user_agent = request.headers.get('user-agent') || undefined;
     const forwarded = request.headers.get('x-forwarded-for');
-    const ip_address = forwarded ? forwarded.split(',')[0] : request.ip || undefined;
+    const ip_address = forwarded ? forwarded.split(',')[0] : undefined;
     
     // Generate or get session ID from headers
     const session_id = request.headers.get('x-session-id') || undefined;

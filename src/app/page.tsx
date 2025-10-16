@@ -1,12 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Image from "next/image";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
-import AvailabilitySection from "@/components/AvailabilitySection";
 import { useSupabaseVideos, useSupabaseContactForms, useSupabaseCalendar } from '@/hooks/useDatabase';
-import { usePageViewTracking, useAnalytics } from '@/hooks/useAnalytics';
+import { usePageViewTracking } from '@/hooks/useAnalytics';
 import { VideoRecord } from '@/lib/database';
 
 export default function Home() {
@@ -31,34 +29,12 @@ export default function Home() {
   const { getVideos } = useSupabaseVideos();
   const { submitContactForm, loading: formLoading } = useSupabaseContactForms();
   const { getCalendarData } = useSupabaseCalendar();
-  const { trackContactFormView } = useAnalytics();
 
   // Track homepage view
   usePageViewTracking('/');
   
-  useEffect(() => {
-    loadVideos();
-    loadCalendarData();
-    const today = new Date();
-    setCurrentMonth(today.getMonth());
-    setCurrentYear(today.getFullYear());
-    generateCalendar(today.getMonth(), today.getFullYear());
-  }, []);
 
-  const loadCalendarData = async () => {
-    try {
-      const data = await getCalendarData();
-      const calendarMap: Record<string, string> = {};
-      data.forEach(record => {
-        calendarMap[record.date] = record.status;
-      });
-      setCalendarData(calendarMap);
-    } catch (error) {
-      console.error('Error loading calendar data:', error);
-    }
-  };
-
-  const generateCalendar = (month: number, year: number) => {
+  const generateCalendar = useCallback((month: number, year: number, calendarDataToUse?: Record<string, string>) => {
     const today = new Date();
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
@@ -76,6 +52,9 @@ export default function Home() {
     
     const days = [];
     
+    // Use provided calendar data or current state
+    const dataToUse = calendarDataToUse || calendarData;
+    
     // Add empty cells for days before the first day of the month
     for (let i = 0; i < startingDayOfWeek; i++) {
       days.push(null);
@@ -90,7 +69,7 @@ export default function Home() {
       
       // Check database status for this date
       const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      const dbStatus = calendarData[dateString];
+      const dbStatus = dataToUse[dateString];
       
       // Determine if date is booked based on database status
       const isBooked = dbStatus === 'booked' || dbStatus === 'blocked';
@@ -108,7 +87,7 @@ export default function Home() {
     
     setCalendarDays(days);
     console.log('Calendar generated:', { monthName: monthNames[month], year, daysCount: days.length });
-  };
+  }, []);
 
   const navigateMonth = (direction: 'prev' | 'next') => {
     let newMonth = currentMonth;
@@ -132,19 +111,43 @@ export default function Home() {
     generateCalendar(newMonth, newYear);
   };
   
-  const loadVideos = async () => {
-    try {
-      const portfolioData = await getVideos('portfolio');
-      setPortfolioVideos(portfolioData.slice(0, 3)); // Show only first 3
-      
-      const heroData = await getVideos('hero');
-      if (heroData.length > 0) {
-        setHeroVideo(heroData[0]);
+
+  useEffect(() => {
+    const initializeData = async () => {
+      // Load videos
+      try {
+        const portfolioData = await getVideos('portfolio');
+        setPortfolioVideos(portfolioData.slice(0, 3));
+        
+        const heroData = await getVideos('hero');
+        if (heroData.length > 0) {
+          setHeroVideo(heroData[0]);
+        }
+      } catch (error) {
+        console.error('Error loading videos:', error);
       }
-    } catch (error) {
-      console.error('Error loading videos:', error);
-    }
-  };
+
+      // Load calendar data
+      try {
+        const data = await getCalendarData();
+        const calendarMap: Record<string, string> = {};
+        data.forEach(record => {
+          calendarMap[record.date] = record.status;
+        });
+        setCalendarData(calendarMap);
+        
+        // Generate calendar with loaded data
+        const today = new Date();
+        setCurrentMonth(today.getMonth());
+        setCurrentYear(today.getFullYear());
+        generateCalendar(today.getMonth(), today.getFullYear(), calendarMap);
+      } catch (error) {
+        console.error('Error loading calendar data:', error);
+      }
+    };
+
+    initializeData();
+  }, []); // Empty dependency array - only run once
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

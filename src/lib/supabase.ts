@@ -1,21 +1,15 @@
-import { Pool } from 'pg';
+import { createClient } from '@supabase/supabase-js';
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
-});
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-export const db = pool;
-
-export type VideoType = 'portfolio' | 'hero' | 'about_hero' | 'about_timeline_1' | 'about_timeline_2' | 'about_timeline_3' | 'about_timeline_4' | 'about_timeline_5' | 'about_timeline_6' | 'about_behind_scenes';
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export type VideoRecord = {
   id: string;
   name: string;
   file_path: string;
-  video_type: VideoType;
+  video_type: 'portfolio' | 'hero';
   created_at: string;
   updated_at: string;
 };
@@ -58,26 +52,5 @@ export type CallbackRequest = {
   phone: string;
   best_time?: string;
   status: 'pending' | 'called' | 'completed';
-  created_at: string;
-};
-
-export type PhotoRecord = {
-  id: string;
-  name: string;
-  file_path: string;
-  category: 'portfolio' | 'featured';
-  description?: string;
-  created_at: string;
-  updated_at: string;
-};
-
-export type AnalyticsRecord = {
-  id: string;
-  event_type: 'page_view' | 'video_view' | 'photo_view' | 'contact_form_view' | 'booking_form_view';
-  page_path: string;
-  user_agent?: string;
-  ip_address?: string;
-  session_id?: string;
-  metadata?: string; // JSON string for additional data
   created_at: string;
 };

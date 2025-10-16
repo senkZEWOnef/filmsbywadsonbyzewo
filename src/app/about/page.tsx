@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import { useSupabaseVideos } from "@/hooks/useDatabase";
 import { usePageViewTracking } from '@/hooks/useAnalytics';
-import { VideoRecord } from "@/lib/database";
+import { VideoRecord, VideoType } from "@/lib/database";
 
 export default function About() {
   const [aboutVideos, setAboutVideos] = useState<{[key: string]: VideoRecord | null}>({
@@ -24,16 +24,12 @@ export default function About() {
   // Track about page view
   usePageViewTracking('/about');
 
-  useEffect(() => {
-    loadVideos();
-  }, []);
-
-  const loadVideos = async () => {
+  const loadVideos = useCallback(async () => {
     try {
       // Load all about page videos
-      const aboutVideoTypes = ['about_hero', 'about_timeline_1', 'about_timeline_2', 'about_timeline_3', 'about_timeline_4', 'about_timeline_5', 'about_timeline_6', 'about_behind_scenes'];
+      const aboutVideoTypes: VideoType[] = ['about_hero', 'about_timeline_1', 'about_timeline_2', 'about_timeline_3', 'about_timeline_4', 'about_timeline_5', 'about_timeline_6', 'about_behind_scenes'];
       const aboutVideoPromises = aboutVideoTypes.map(async (type) => {
-        const videos = await getVideos(type as any);
+        const videos = await getVideos(type);
         return { type, video: videos.length > 0 ? videos[0] : null };
       });
       
@@ -46,7 +42,11 @@ export default function About() {
     } catch (error) {
       console.error("Error loading videos:", error);
     }
-  };
+  }, [getVideos]);
+
+  useEffect(() => {
+    loadVideos();
+  }, [loadVideos]);
 
   const timelineSteps = [
     {

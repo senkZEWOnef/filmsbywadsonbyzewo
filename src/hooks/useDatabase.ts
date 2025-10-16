@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from 'react';
-import { VideoRecord, BookingRecord, CalendarRecord, ContactFormRecord, CallbackRequest, PhotoRecord } from '@/lib/database';
+import { useState, useCallback } from 'react';
+import { VideoRecord, VideoType, BookingRecord, CalendarRecord, ContactFormRecord, CallbackRequest, PhotoRecord } from '@/lib/database';
 
 export const useSupabaseVideos = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const createVideo = async (name: string, filePath: string, videoType: 'portfolio' | 'hero') => {
+  const createVideo = useCallback(async (name: string, filePath: string, videoType: VideoType) => {
     setLoading(true);
     setError(null);
     
@@ -29,9 +29,9 @@ export const useSupabaseVideos = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const getVideos = async (videoType?: 'portfolio' | 'hero') => {
+  const getVideos = useCallback(async (videoType?: VideoType) => {
     setLoading(true);
     setError(null);
     
@@ -54,7 +54,7 @@ export const useSupabaseVideos = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const deleteVideo = async (id: string) => {
     setLoading(true);
@@ -112,7 +112,7 @@ export const useSupabaseCalendar = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const updateCalendarDate = async (date: string, status: string, notes?: string) => {
+  const updateCalendarDate = useCallback(async (date: string, status: string, notes?: string) => {
     setLoading(true);
     setError(null);
     
@@ -134,9 +134,9 @@ export const useSupabaseCalendar = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const getCalendarData = async () => {
+  const getCalendarData = useCallback(async () => {
     setLoading(true);
     setError(null);
     
@@ -154,7 +154,7 @@ export const useSupabaseCalendar = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   return {
     updateCalendarDate,
@@ -192,7 +192,7 @@ export const useSupabaseBookings = () => {
     }
   };
 
-  const getBookings = async () => {
+  const getBookings = useCallback(async () => {
     setLoading(true);
     setError(null);
     
@@ -210,7 +210,7 @@ export const useSupabaseBookings = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const updateBookingStatus = async (id: string, status: string) => {
     setLoading(true);
@@ -292,7 +292,7 @@ export const useSupabaseContactForms = () => {
     }
   };
 
-  const getContactForms = async () => {
+  const getContactForms = useCallback(async () => {
     setLoading(true);
     setError(null);
     
@@ -310,7 +310,7 @@ export const useSupabaseContactForms = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const updateContactFormStatus = async (id: string, status: ContactFormRecord['status']) => {
     setLoading(true);
@@ -371,7 +371,7 @@ export const useSupabaseCallbacks = () => {
     }
   };
 
-  const getCallbackRequests = async () => {
+  const getCallbackRequests = useCallback(async () => {
     setLoading(true);
     setError(null);
     
@@ -389,7 +389,7 @@ export const useSupabaseCallbacks = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const updateCallbackStatus = async (id: string, status: CallbackRequest['status']) => {
     setLoading(true);
@@ -471,7 +471,7 @@ export const useSupabasePhotos = () => {
     }
   };
 
-  const getPhotos = async (category?: 'portfolio' | 'featured') => {
+  const getPhotos = useCallback(async (category?: 'portfolio' | 'featured') => {
     setLoading(true);
     setError(null);
     
@@ -494,7 +494,7 @@ export const useSupabasePhotos = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const updatePhoto = async (id: string, name: string, description?: string) => {
     setLoading(true);
