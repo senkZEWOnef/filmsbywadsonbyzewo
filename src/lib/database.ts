@@ -16,6 +16,9 @@ export type VideoRecord = {
   name: string;
   file_path: string;
   video_type: VideoType;
+  source_type: 'upload' | 'youtube';
+  youtube_url?: string;
+  thumbnail_url?: string;
   created_at: string;
   updated_at: string;
 };

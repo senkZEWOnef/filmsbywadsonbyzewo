@@ -7,7 +7,7 @@ export const useSupabaseVideos = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const createVideo = useCallback(async (name: string, filePath: string, videoType: VideoType) => {
+  const createVideo = useCallback(async (name: string, filePath: string, videoType: VideoType, sourceType: 'upload' | 'youtube' = 'upload', youtubeUrl?: string, thumbnailUrl?: string) => {
     setLoading(true);
     setError(null);
     
@@ -15,7 +15,7 @@ export const useSupabaseVideos = () => {
       const response = await fetch('/api/videos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, filePath, videoType })
+        body: JSON.stringify({ name, filePath, videoType, sourceType, youtubeUrl, thumbnailUrl })
       });
 
       if (!response.ok) {

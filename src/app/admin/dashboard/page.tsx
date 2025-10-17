@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSupabaseVideos, useSupabaseCalendar, useSupabaseBookings, useSupabaseContactForms, useSupabaseCallbacks, useSupabasePhotos } from '@/hooks/useDatabase';
 import { useAnalyticsData } from '@/hooks/useAnalytics';
 import { VideoRecord, VideoType, BookingRecord, ContactFormRecord, CallbackRequest, PhotoRecord } from '@/lib/database';
+import { extractYouTubeVideoId, getYouTubeThumbnailUrl, isValidYouTubeUrl } from '@/lib/youtube';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
@@ -35,6 +36,10 @@ export default function AdminDashboard() {
     popularPages: Array<{page_path: string; views: number; unique_visitors: number}>;
   } | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [videoUploadType, setVideoUploadType] = useState<'upload' | 'youtube'>('upload');
+  const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [videoName, setVideoName] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const router = useRouter();
 
   // Supabase hooks
@@ -170,6 +175,47 @@ export default function AdminDashboard() {
     
     // Reset the input
     event.target.value = '';
+  };
+
+  const handleYouTubeVideoSubmit = async () => {
+    if (!youtubeUrl.trim() || !videoName.trim()) {
+      alert('Please enter both video name and YouTube URL');
+      return;
+    }
+
+    if (!isValidYouTubeUrl(youtubeUrl)) {
+      alert('Please enter a valid YouTube URL');
+      return;
+    }
+
+    try {
+      const videoId = extractYouTubeVideoId(youtubeUrl);
+      if (!videoId) {
+        alert('Could not extract video ID from YouTube URL');
+        return;
+      }
+
+      const thumbnailUrl = getYouTubeThumbnailUrl(videoId);
+      
+      const uploadedVideo = await createVideo(
+        videoName,
+        '', // No file path for YouTube videos
+        'portfolio',
+        'youtube',
+        youtubeUrl,
+        thumbnailUrl
+      );
+      
+      setPortfolioVideos(prev => [...prev, uploadedVideo]);
+      
+      // Reset form
+      setYoutubeUrl('');
+      setVideoName('');
+      alert('YouTube video added successfully!');
+    } catch (error) {
+      console.error('Error adding YouTube video:', error);
+      alert('Failed to add YouTube video. Please try again.');
+    }
   };
 
   const handleHeroVideoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -357,18 +403,36 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-900 flex">
+      {/* Mobile menu overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar Navigation */}
-      <div className="w-64 bg-slate-800 shadow-xl">
+      <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-50 w-64 bg-slate-800 shadow-xl transition-transform duration-300 ease-in-out`}>
         {/* Sidebar Header */}
         <div className="p-6 border-b border-slate-700">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold">FW</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold">FW</span>
+              </div>
+              <div>
+                <h1 className="text-lg font-light text-white">Films by Wadson</h1>
+                <p className="text-xs text-slate-400">Admin Dashboard</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-lg font-light text-white">Films by Wadson</h1>
-              <p className="text-xs text-slate-400">Admin Dashboard</p>
-            </div>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden text-slate-400 hover:text-white transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -387,7 +451,10 @@ export default function AdminDashboard() {
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                setActiveTab(tab.id);
+                setSidebarOpen(false); // Close sidebar on mobile when tab is selected
+              }}
               className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium transition-all duration-200 text-left ${
                 activeTab === tab.id
                   ? "bg-purple-600 text-white shadow-lg"
@@ -427,8 +494,33 @@ export default function AdminDashboard() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-auto">
-        <div className="p-8">
+      <div className="flex-1 overflow-auto lg:ml-0">
+        {/* Mobile header */}
+        <div className="lg:hidden bg-slate-800 p-4 border-b border-slate-700">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="text-white hover:text-gray-300 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+              <h1 className="text-lg font-light text-white">Films by Wadson</h1>
+            </div>
+            <button
+              onClick={logout}
+              className="text-slate-300 hover:text-white transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        
+        <div className="p-4 lg:p-8">
 
         {/* Overview Tab */}
         {activeTab === "overview" && (
@@ -451,7 +543,7 @@ export default function AdminDashboard() {
             </div>
             
             {/* Modern Analytics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
               {[
                 { title: "Total Inquiries", value: analytics.totalInquiries, icon: "💬", color: "from-blue-500 to-blue-600", loading: false },
                 { title: "Portfolio Views", value: analytics.portfolioViews, icon: "👁️", color: "from-purple-500 to-purple-600", loading: analyticsLoading },
@@ -1029,17 +1121,18 @@ export default function AdminDashboard() {
             <div className="flex justify-between items-center">
               <div>
                 <h2 className="text-3xl font-light text-white mb-2">Portfolio Management</h2>
-                <p className="text-slate-300">Upload and manage your wedding film portfolio.</p>
+                <p className="text-slate-300">Upload videos or add YouTube links to your wedding film portfolio.</p>
               </div>
-              <label 
-                htmlFor="video-upload" 
-                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 rounded-xl transition-all duration-200 flex items-center space-x-2 cursor-pointer"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                <span>Upload Video</span>
-              </label>
+              <div className="flex items-center space-x-3">
+                <select
+                  value={videoUploadType}
+                  onChange={(e) => setVideoUploadType(e.target.value as 'upload' | 'youtube')}
+                  className="bg-slate-700 border border-slate-600 text-white px-4 py-2 rounded-lg focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="upload">File Upload</option>
+                  <option value="youtube">YouTube URL</option>
+                </select>
+              </div>
             </div>
             
             {/* Error Display */}
@@ -1051,37 +1144,114 @@ export default function AdminDashboard() {
               </div>
             )}
             
+            {/* Upload Type Toggle */}
             <div className="bg-slate-800/80 backdrop-blur-lg rounded-2xl p-8 border border-slate-700/50">
-              <div className="border-2 border-dashed border-slate-300 rounded-xl p-12 text-center hover:border-purple-400 transition-colors">
-                <div className="text-6xl mb-6">🎬</div>
-                <h3 className="text-xl font-semibold text-white mb-2">Upload Wedding Videos</h3>
-                <p className="text-slate-300 mb-6">Drag and drop video files or click to browse</p>
-                <input
-                  type="file"
-                  accept="video/*"
-                  multiple
-                  className="hidden"
-                  id="video-upload"
-                  onChange={handlePortfolioUpload}
-                  disabled={videoLoading}
-                />
-                <label
-                  htmlFor="video-upload"
-                  className="inline-flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 rounded-lg cursor-pointer transition-all duration-200"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  <span>Choose Videos</span>
-                </label>
-              </div>
+              {videoUploadType === 'upload' ? (
+                <div className="border-2 border-dashed border-slate-300 rounded-xl p-12 text-center hover:border-purple-400 transition-colors">
+                  <div className="text-6xl mb-6">🎬</div>
+                  <h3 className="text-xl font-semibold text-white mb-2">Upload Wedding Videos</h3>
+                  <p className="text-slate-300 mb-6">Drag and drop video files or click to browse</p>
+                  <input
+                    type="file"
+                    accept="video/*"
+                    multiple
+                    className="hidden"
+                    id="video-upload"
+                    onChange={handlePortfolioUpload}
+                    disabled={videoLoading}
+                  />
+                  <label
+                    htmlFor="video-upload"
+                    className="inline-flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 rounded-lg cursor-pointer transition-all duration-200"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <span>Choose Videos</span>
+                  </label>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="text-center mb-8">
+                    <div className="text-6xl mb-6">📺</div>
+                    <h3 className="text-xl font-semibold text-white mb-2">Add YouTube Video</h3>
+                    <p className="text-slate-300">Add videos from your YouTube channel to your portfolio</p>
+                  </div>
+                  
+                  <div className="max-w-2xl mx-auto space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-white mb-2">Video Name</label>
+                      <input
+                        type="text"
+                        value={videoName}
+                        onChange={(e) => setVideoName(e.target.value)}
+                        placeholder="Enter a name for this video..."
+                        className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-white mb-2">YouTube URL</label>
+                      <input
+                        type="url"
+                        value={youtubeUrl}
+                        onChange={(e) => setYoutubeUrl(e.target.value)}
+                        placeholder="https://www.youtube.com/watch?v=..."
+                        className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                      <p className="text-slate-400 text-sm mt-1">
+                        Paste the URL of your YouTube video
+                      </p>
+                    </div>
+                    
+                    <button
+                      onClick={handleYouTubeVideoSubmit}
+                      disabled={videoLoading || !youtubeUrl.trim() || !videoName.trim()}
+                      className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-slate-600 disabled:to-slate-600 text-white px-6 py-3 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      <span>{videoLoading ? 'Adding...' : 'Add YouTube Video'}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {portfolioVideos.map((video) => (
                 <div key={video.id} className="bg-slate-800/80 backdrop-blur-lg rounded-2xl overflow-hidden border border-slate-700/50 hover:shadow-lg transition-shadow">
                   <div className="aspect-video bg-gradient-to-br from-purple-400 to-pink-400 relative overflow-hidden">
-                    {video.file_path ? (
+                    {video.source_type === 'youtube' && video.youtube_url ? (
+                      <div className="relative w-full h-full">
+                        {video.thumbnail_url && (
+                          <img 
+                            src={video.thumbnail_url} 
+                            alt={video.name}
+                            className="w-full h-full object-cover"
+                          />
+                        )}
+                        <div className="absolute inset-0 bg-black/20"></div>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center">
+                            <svg className="w-6 h-6 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M8 5v14l11-7z"/>
+                            </svg>
+                          </div>
+                        </div>
+                        <div className="absolute top-2 right-2">
+                          <span className="bg-red-600 text-white text-xs px-2 py-1 rounded-full">YouTube</span>
+                        </div>
+                        <a 
+                          href={video.youtube_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="absolute inset-0 z-10"
+                          aria-label={`Watch ${video.name} on YouTube`}
+                        />
+                      </div>
+                    ) : video.file_path ? (
                       <video 
                         src={video.file_path} 
                         className="w-full h-full object-cover"
@@ -1107,10 +1277,27 @@ export default function AdminDashboard() {
                       onChange={(e) => handleEditPortfolioVideo(video.id, e.target.value)}
                       className="text-lg font-semibold text-white mb-2 bg-transparent border-none outline-none w-full"
                     />
-                    <p className="text-slate-300 text-sm mb-4">
-                      Beautiful cinematic story
-                    </p>
+                    <div className="flex items-center space-x-2 mb-4">
+                      <p className="text-slate-300 text-sm">
+                        {video.source_type === 'youtube' ? 'YouTube Video' : 'Uploaded Video'}
+                      </p>
+                      {video.source_type === 'youtube' && (
+                        <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                        </svg>
+                      )}
+                    </div>
                     <div className="flex space-x-2">
+                      {video.source_type === 'youtube' && video.youtube_url && (
+                        <a
+                          href={video.youtube_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 text-red-400 hover:text-red-300 text-sm font-medium py-2 px-3 border border-red-500 rounded-lg hover:bg-red-500/10 transition-colors text-center"
+                        >
+                          View on YouTube
+                        </a>
+                      )}
                       <button 
                         onClick={() => {
                           const newName = prompt('Enter new name:', video.name);

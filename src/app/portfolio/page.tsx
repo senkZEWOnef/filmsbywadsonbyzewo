@@ -7,6 +7,7 @@ import Footer from "@/components/Footer";
 import { useSupabaseVideos, useSupabasePhotos } from '@/hooks/useDatabase';
 import { usePageViewTracking, useAnalytics } from '@/hooks/useAnalytics';
 import { VideoRecord, PhotoRecord } from '@/lib/database';
+import { getYouTubeEmbedUrl, extractYouTubeVideoId } from '@/lib/youtube';
 
 export default function Portfolio() {
   const [portfolioVideos, setPortfolioVideos] = useState<VideoRecord[]>([]);
@@ -239,22 +240,52 @@ export default function Portfolio() {
                           }}
                         >
                           <div className="relative aspect-[4/5] bg-slate-700 rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-500 group-hover:scale-105">
-                            <video 
-                              src={video.file_path} 
-                              className="w-full h-full object-cover"
-                              preload="metadata"
-                              muted
-                            />
+                            {video.source_type === 'youtube' && video.thumbnail_url ? (
+                              <>
+                                <img 
+                                  src={video.thumbnail_url} 
+                                  alt={video.name}
+                                  className="w-full h-full object-cover"
+                                />
+                                <div className="absolute top-4 right-4">
+                                  <div className="bg-red-600 text-white text-xs px-2 py-1 rounded-full flex items-center space-x-1">
+                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                                      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                                    </svg>
+                                    <span>YouTube</span>
+                                  </div>
+                                </div>
+                              </>
+                            ) : video.file_path ? (
+                              <video 
+                                src={video.file_path} 
+                                className="w-full h-full object-cover"
+                                preload="metadata"
+                                muted
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center">
+                                <div className="text-white/50 text-center">
+                                  <svg className="w-16 h-16 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                  </svg>
+                                  <p className="text-xs">No Preview</p>
+                                </div>
+                              </div>
+                            )}
                             <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-colors duration-300"></div>
                             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                              <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center backdrop-blur-sm">
-                                <svg className="w-6 h-6 text-slate-900 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                              <div className={`w-16 h-16 ${video.source_type === 'youtube' ? 'bg-red-600' : 'bg-white/90'} rounded-full flex items-center justify-center backdrop-blur-sm`}>
+                                <svg className={`w-6 h-6 ${video.source_type === 'youtube' ? 'text-white' : 'text-slate-900'} ml-1`} fill="currentColor" viewBox="0 0 24 24">
                                   <path d="M8 5v14l11-7z"/>
                                 </svg>
                               </div>
                             </div>
                             <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
                               <h3 className="text-white font-medium text-sm">{video.name}</h3>
+                              {video.source_type === 'youtube' && (
+                                <p className="text-white/70 text-xs mt-1">YouTube Video</p>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -426,24 +457,66 @@ export default function Portfolio() {
 
             <div className="bg-slate-900 rounded-2xl overflow-hidden shadow-2xl">
               <div className="aspect-video">
-                <video 
-                  src={selectedVideo.file_path} 
-                  className="w-full h-full"
-                  controls
-                  autoPlay
-                />
+                {selectedVideo.source_type === 'youtube' && selectedVideo.youtube_url ? (
+                  <iframe
+                    src={getYouTubeEmbedUrl(extractYouTubeVideoId(selectedVideo.youtube_url) || '')}
+                    className="w-full h-full"
+                    allowFullScreen
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  />
+                ) : selectedVideo.file_path ? (
+                  <video 
+                    src={selectedVideo.file_path} 
+                    className="w-full h-full"
+                    controls
+                    autoPlay
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center">
+                    <div className="text-white/70 text-center">
+                      <svg className="w-24 h-24 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      <p className="text-lg">Video Not Available</p>
+                      <p className="text-sm text-white/50 mt-2">No video file found</p>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="p-6">
                 <div className="flex justify-between items-start">
                   <div>
                     <h3 className="text-2xl font-semibold text-white mb-2">{selectedVideo.name}</h3>
-                    <p className="text-gray-300">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <p className="text-gray-300">
+                        {selectedVideo.source_type === 'youtube' ? 'YouTube Video' : 'Uploaded Video'}
+                      </p>
+                      {selectedVideo.source_type === 'youtube' && (
+                        <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                        </svg>
+                      )}
+                    </div>
+                    <p className="text-gray-400 text-sm">
                       Created {new Date(selectedVideo.created_at).toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric'
                       })}
                     </p>
+                    {selectedVideo.source_type === 'youtube' && selectedVideo.youtube_url && (
+                      <a 
+                        href={selectedVideo.youtube_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center space-x-2 text-red-400 hover:text-red-300 text-sm mt-2"
+                      >
+                        <span>View on YouTube</span>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                      </a>
+                    )}
                   </div>
                   {portfolioVideos.length > 1 && (
                     <div className="text-white/70 text-sm">

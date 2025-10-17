@@ -27,11 +27,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, filePath, videoType } = await request.json();
+    const { name, filePath, videoType, sourceType, youtubeUrl, thumbnailUrl } = await request.json();
     
     const result = await db.query(
-      'INSERT INTO videos (name, file_path, video_type, created_at, updated_at) VALUES ($1, $2, $3, NOW(), NOW()) RETURNING *',
-      [name, filePath, videoType]
+      `INSERT INTO videos (name, file_path, video_type, source_type, youtube_url, thumbnail_url, created_at, updated_at) 
+       VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW()) RETURNING *`,
+      [name, filePath || '', videoType, sourceType || 'upload', youtubeUrl || null, thumbnailUrl || null]
     );
     
     return NextResponse.json(result.rows[0]);
