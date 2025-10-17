@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from 'react';
-import { VideoRecord, VideoType, BookingRecord, CalendarRecord, ContactFormRecord, CallbackRequest, PhotoRecord } from '@/lib/database';
+import { VideoRecord, VideoType, BookingRecord, CalendarRecord, ContactFormRecord, CallbackRequest, PhotoRecord, ContactInfoRecord } from '@/lib/database';
 
 export const useSupabaseVideos = () => {
   const [loading, setLoading] = useState(false);
@@ -543,6 +543,62 @@ export const useSupabasePhotos = () => {
     getPhotos,
     updatePhoto,
     deletePhoto,
+    loading,
+    error
+  };
+};
+
+export const useSupabaseContactInfo = () => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const getContactInfo = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch('/api/contact-info');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch contact info');
+      }
+      
+      return await response.json() as ContactInfoRecord;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch contact info');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const updateContactInfo = async (contactInfo: Omit<ContactInfoRecord, 'id' | 'created_at' | 'updated_at'>) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch('/api/contact-info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(contactInfo)
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update contact info');
+      }
+      
+      return await response.json() as ContactInfoRecord;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Contact info update failed');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return {
+    getContactInfo,
+    updateContactInfo,
     loading,
     error
   };

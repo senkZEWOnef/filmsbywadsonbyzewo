@@ -285,15 +285,26 @@ export default function Home() {
                   className="bg-white rounded-lg shadow-lg overflow-hidden group hover:shadow-xl transition-shadow duration-300 block"
                 >
                   <div className="aspect-video bg-slate-200 relative overflow-hidden">
-                    <video 
-                      src={video.file_path} 
-                      className="w-full h-full object-cover"
-                      autoPlay
-                      muted
-                      loop
-                      playsInline
-                      preload="metadata"
-                    />
+                    {video.file_path ? (
+                      <video 
+                        src={video.file_path} 
+                        className="w-full h-full object-cover"
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                        preload="metadata"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-slate-200">
+                        <div className="text-slate-400 text-center">
+                          <svg className="w-12 h-12 mx-auto mb-2" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M17 10.5V7a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h12a1 1 0 001-1v-3.5l4 4v-11l-4 4z"/>
+                          </svg>
+                          <p className="text-sm">Video Loading...</p>
+                        </div>
+                      </div>
+                    )}
                     <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors duration-300"></div>
                     <div className="absolute bottom-4 right-4">
                       <div className="w-8 h-8 bg-white/90 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">

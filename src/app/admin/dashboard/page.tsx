@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useSupabaseVideos, useSupabaseCalendar, useSupabaseBookings, useSupabaseContactForms, useSupabaseCallbacks, useSupabasePhotos } from '@/hooks/useDatabase';
+import { useSupabaseVideos, useSupabaseCalendar, useSupabaseBookings, useSupabaseContactForms, useSupabaseCallbacks, useSupabasePhotos, useSupabaseContactInfo } from '@/hooks/useDatabase';
 import { useAnalyticsData } from '@/hooks/useAnalytics';
-import { VideoRecord, VideoType, BookingRecord, ContactFormRecord, CallbackRequest, PhotoRecord } from '@/lib/database';
+import { VideoRecord, VideoType, BookingRecord, ContactFormRecord, CallbackRequest, PhotoRecord, ContactInfoRecord } from '@/lib/database';
 import { extractYouTubeVideoId, getYouTubeThumbnailUrl, isValidYouTubeUrl } from '@/lib/youtube';
 
 export default function AdminDashboard() {
@@ -40,6 +40,7 @@ export default function AdminDashboard() {
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [videoName, setVideoName] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [contactInfo, setContactInfo] = useState<ContactInfoRecord | null>(null);
   const router = useRouter();
 
   // Supabase hooks
@@ -49,6 +50,7 @@ export default function AdminDashboard() {
   const { getBookings, updateBookingStatus, deleteBooking, loading: bookingLoading, error: bookingError } = useSupabaseBookings();
   const { getContactForms, updateContactFormStatus, loading: contactFormLoading, error: contactFormError } = useSupabaseContactForms();
   const { getCallbackRequests, updateCallbackStatus, deleteCallbackRequest, loading: callbackLoading, error: callbackError } = useSupabaseCallbacks();
+  const { getContactInfo, updateContactInfo, loading: contactInfoLoading, error: contactInfoError } = useSupabaseContactInfo();
   const { fetchSummary } = useAnalyticsData();
 
   const loadAnalyticsData = useCallback(async () => {
@@ -113,12 +115,16 @@ export default function AdminDashboard() {
       });
       setAboutVideos(aboutVideoMap);
 
+      // Load contact info
+      const contactData = await getContactInfo();
+      setContactInfo(contactData);
+
       // Load analytics data
       await loadAnalyticsData();
     } catch (error) {
       console.error('Error loading initial data:', error);
     }
-  }, [getVideos, getPhotos, getCalendarData, getBookings, getContactForms, getCallbackRequests, loadAnalyticsData]);
+  }, [getVideos, getPhotos, getCalendarData, getBookings, getContactForms, getCallbackRequests, getContactInfo, loadAnalyticsData]);
 
   useEffect(() => {
     const isLoggedIn = localStorage.getItem("adminLoggedIn");
@@ -448,6 +454,7 @@ export default function AdminDashboard() {
             { id: "about-page", label: "About Page", icon: "📖" },
             { id: "inquiries", label: "Messages", icon: "💬" },
             { id: "callbacks", label: "Callbacks", icon: "📞" },
+            { id: "contact", label: "Contact Info", icon: "📧" },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -1810,6 +1817,143 @@ export default function AdminDashboard() {
                   <p className="text-slate-400">Phone callback requests will appear here</p>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Contact Info Tab */}
+        {activeTab === "contact" && (
+          <div className="space-y-8">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-3xl font-light text-white mb-2">Contact Information</h2>
+                <p className="text-slate-300">Manage your contact details displayed across the website.</p>
+              </div>
+            </div>
+
+            {contactInfoError && (
+              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+                <p className="text-red-400 text-sm">{contactInfoError}</p>
+              </div>
+            )}
+
+            <div className="bg-slate-800/80 backdrop-blur-lg rounded-2xl p-8 border border-slate-700/50">
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                const contactData = {
+                  email: formData.get('email') as string,
+                  phone: formData.get('phone') as string,
+                  instagram_url: formData.get('instagram_url') as string,
+                  facebook_url: formData.get('facebook_url') as string,
+                  address: formData.get('address') as string,
+                };
+
+                try {
+                  const updated = await updateContactInfo(contactData);
+                  setContactInfo(updated);
+                  alert('Contact information updated successfully!');
+                } catch (error) {
+                  console.error('Error updating contact info:', error);
+                  alert('Failed to update contact information. Please try again.');
+                }
+              }} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">Email Address</label>
+                    <input
+                      type="email"
+                      name="email"
+                      defaultValue={contactInfo?.email || ''}
+                      required
+                      className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="hello@filmsbywadson.com"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">Phone Number</label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      defaultValue={contactInfo?.phone || ''}
+                      required
+                      className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="(555) 123-FILM"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">Instagram URL</label>
+                    <input
+                      type="url"
+                      name="instagram_url"
+                      defaultValue={contactInfo?.instagram_url || ''}
+                      required
+                      className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="https://instagram.com/filmsbywadson"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">Facebook URL</label>
+                    <input
+                      type="url"
+                      name="facebook_url"
+                      defaultValue={contactInfo?.facebook_url || ''}
+                      required
+                      className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="https://facebook.com/filmsbywadson"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-white mb-2">Business Address/Service Area</label>
+                  <input
+                    type="text"
+                    name="address"
+                    defaultValue={contactInfo?.address || ''}
+                    required
+                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="Serving weddings worldwide"
+                  />
+                </div>
+
+                <div className="pt-4">
+                  <button
+                    type="submit"
+                    disabled={contactInfoLoading}
+                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-slate-600 disabled:to-slate-600 text-white px-6 py-3 rounded-lg transition-all duration-200 font-medium"
+                  >
+                    {contactInfoLoading ? 'Updating...' : 'Update Contact Information'}
+                  </button>
+                </div>
+              </form>
+
+              <div className="mt-8 pt-8 border-t border-slate-700">
+                <h4 className="text-lg font-medium text-white mb-4">Where This Information Appears:</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-300">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                    <span>Footer on all pages</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                    <span>Contact page</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                    <span>Social media links</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                    <span>Contact forms</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}

@@ -74,6 +74,17 @@ export type PhotoRecord = {
   updated_at: string;
 };
 
+export type ContactInfoRecord = {
+  id: string;
+  email: string;
+  phone: string;
+  instagram_url: string;
+  facebook_url: string;
+  address: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type AnalyticsRecord = {
   id: string;
   event_type: 'page_view' | 'video_view' | 'photo_view' | 'contact_form_view' | 'booking_form_view';
