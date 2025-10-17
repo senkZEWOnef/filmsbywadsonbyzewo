@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import { useSupabaseVideos, useSupabaseContactForms, useSupabaseCalendar } from '@/hooks/useDatabase';
