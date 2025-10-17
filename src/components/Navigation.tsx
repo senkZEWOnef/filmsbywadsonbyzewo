@@ -11,8 +11,12 @@ export default function Navigation() {
       <div className="max-w-7xl mx-auto px-6 py-4">
         <div className="flex justify-between items-center">
           {/* Logo */}
-          <Link href="/" className="text-2xl font-light tracking-wider text-slate-900 hover:text-slate-700 transition-colors">
-            FILMS BY WADSON
+          <Link href="/" className="block hover:opacity-80 transition-opacity">
+            <img 
+              src="/Logo on White.png" 
+              alt="Films by Wadson" 
+              className="h-12 w-auto"
+            />
           </Link>
 
           {/* Desktop Navigation */}

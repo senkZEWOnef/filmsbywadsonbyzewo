@@ -9,10 +9,12 @@ export default function Footer() {
           
           {/* Brand Section */}
           <div className="lg:col-span-2">
-            <Link href="/" className="inline-block mb-4">
-              <h3 className="text-2xl font-light tracking-wider text-white hover:text-slate-300 transition-colors">
-                FILMS BY WADSON
-              </h3>
+            <Link href="/" className="inline-block mb-4 hover:opacity-80 transition-opacity">
+              <img 
+                src="/Logo on White.png" 
+                alt="Films by Wadson" 
+                className="h-10 w-auto"
+              />
             </Link>
             <p className="text-slate-400 text-sm mb-6 italic">
               Pure essence of creativity
